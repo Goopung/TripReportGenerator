@@ -1,8 +1,8 @@
-# TripReportGeneratorApp v3
+# TripReportGeneratorApp
 
 This is a standalone app for automatically generating conference business trip result reports.
 
-## Major Updates in v3
+## Major Updates
 
 1. The `Extracted Overview Text or Direct Input` field can now be entered and edited.
 2. The `Purpose of Business Trip` is automatically generated and immediately reflected.
