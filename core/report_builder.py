@@ -539,7 +539,7 @@ def _section_pdf(story: list, title: str, styles: dict) -> None:
 
 
 def _bullet_pdf(story: list, text: str, styles: dict, level: int = 0) -> None:
-    prefix = "o " if level == 0 else "- "
+    prefix = "○" if level == 0 else "- "
     story.append(_p(prefix + str(text).strip(), styles["bullet"]))
 
 
