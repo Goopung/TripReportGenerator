@@ -894,8 +894,8 @@ def generate_reason_pdf_on_template(
         day = parts[2] if len(parts) > 2 else ""
 
     _draw_mixed_line(c, year, 445, 162, 10, korean_font, english_font)
-    _draw_mixed_line(c, month, 476, 162, 10, korean_font, english_font)
-    _draw_mixed_line(c, day, 500, 162, 10, korean_font, english_font)
+    _draw_mixed_line(c, month, 481, 162, 10, korean_font, english_font)
+    _draw_mixed_line(c, day, 505, 162, 10, korean_font, english_font)
 
     _draw_mixed_line(c, reason.principal_name, 452, 140, 10, korean_font, english_font)
 
