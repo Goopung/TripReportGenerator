@@ -461,7 +461,7 @@ with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", 
 
 
 with st.expander("Step 4. 본 연구와 관련성 및 주요 세션 요약", expanded=True):
-    research_theme = st.text_input("본인 연구 주제 / 연구과제명", key="research_theme")
+    research_theme = st.text_input("연구과제명", key="research_theme")
 
     st.text_area(
         "직접 작성 내용 선택 입력",
