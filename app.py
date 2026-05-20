@@ -26,6 +26,7 @@ from core.prompts import (
     TRIP_PURPOSE_SYSTEM,
     TRIP_RESEARCH_RELEVANCE_SYSTEM,
     TRIP_SCHEDULE_SYSTEM,
+    TRIP_EXPECTED_EFFECT_SYSTEM,
 )
 from core.report_builder import create_zip, generate_reason_pdf_on_template, generate_trip_docx, generate_trip_pdf
 from core.validation import check_missing_documents, checklist_rows
@@ -50,6 +51,7 @@ def init_state() -> None:
         "overview_text": "",
         "purpose_text": "",
         "research_relatedness": "",
+        "expected_effect_text": "",
         "daily_schedule": [],
         "date_signature": "",
         "reason_title": "",
@@ -94,6 +96,45 @@ def get_llm() -> LLMClient:
         api_key=st.session_state.get("api_key") or get_config_value("OPENAI_API_KEY", ""),
         model=st.session_state.get("model") or get_config_value("OPENAI_MODEL", "gpt-5.5"),
     )
+
+
+def get_default_expected_effect() -> str:
+    return (
+        f"이번 {conference_name or '학회'} 참여를 통해 파악한 최신 연구 동향과 주요 세션 내용은 "
+        f"향후 본 연구과제의 연구 방향을 구체화하고 관련 분야의 학술적 네트워크를 확대하는 데 "
+        f"기여할 것으로 기대된다."
+    )
+
+
+def generate_expected_effect_text() -> str:
+    prompt = f"""
+학회명: {conference_name}
+출장 구분: {trip_type}
+출장기간: {korean_date(start_date)} ~ {korean_date(end_date)}
+본인 연구 주제: {research_theme}
+
+출장목적:
+{st.session_state.get("purpose_text", "")}
+
+본 연구와 관련성 및 주요 세션 요약:
+{st.session_state.get("research_relatedness", "")}
+
+학회 Overview:
+{st.session_state.get("overview_text", "")}
+"""
+
+    output = get_llm().generate(
+        TRIP_EXPECTED_EFFECT_SYSTEM,
+        prompt,
+        temperature=0.25,
+        max_output_tokens=900,
+    )
+
+    cleaned = str(output).strip()
+    if not cleaned:
+        return get_default_expected_effect()
+
+    return cleaned
 
 
 def parse_schedule_json(text: str, dates: list[date]) -> list[dict]:
@@ -551,6 +592,7 @@ with st.expander("Step 9. 추가 제출서류 및 사유서", expanded=False):
         st.text_input("제 목", key="reason_title")
         st.text_area("내 용", key="reason_content", height=180)
 
+
 def build_current_data(save_files: bool = False) -> TripReportData:
     schedule = sync_schedule_from_widgets(trip_dates)
 
@@ -634,6 +676,7 @@ def build_current_data(save_files: bool = False) -> TripReportData:
         daily_schedule=schedule,
         research_theme=research_theme,
         research_relatedness=st.session_state.get("research_relatedness", ""),
+        expected_effect_text=st.session_state.get("expected_effect_text", ""),
         transport_files=transport_files,
         daily_receipts=daily_receipts,
         daily_photos=daily_photos,
@@ -665,6 +708,12 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
 
     if st.button("출장보고서 DOCX / PDF / ZIP 생성", type="primary", key="generate_report_btn"):
         try:
+            with st.spinner("기대효과 자동생성 중입니다."):
+                try:
+                    st.session_state["expected_effect_text"] = generate_expected_effect_text()
+                except Exception:
+                    st.session_state["expected_effect_text"] = get_default_expected_effect()
+
             final_data = build_current_data(save_files=True)
             missing = check_missing_documents(final_data)
             st.session_state["last_missing"] = missing
@@ -703,7 +752,11 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
             if missing:
                 st.warning("보고서는 생성되었지만 누락 또는 확인 필요 항목이 있습니다. 아래 체크리스트를 확인하세요.")
 
-            download_button(generated_docx, "출장결과보고서 DOCX 다운로드", "application/vnd.openxmlformats-officedocument.wordprocessingml.document")
+            download_button(
+                generated_docx,
+                "출장결과보고서 DOCX 다운로드",
+                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            )
             download_button(generated_pdf, "출장결과보고서 PDF 다운로드", "application/pdf")
             if reason_path:
                 download_button(reason_path, "사유서 PDF 다운로드", "application/pdf")
