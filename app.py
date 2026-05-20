@@ -380,7 +380,7 @@ def render_status_cards() -> None:
             <div class="status-card">
                 <div class="label">Resend 이메일</div>
                 <div class="value">{'완료' if resend_ready else '확인 필요'}</div>
-                <div class="hint">ZIP 이메일 발송 설정</div>
+                <div class="hint">서류 발송 설정</div>
             </div>
             """,
             unsafe_allow_html=True,
@@ -767,12 +767,12 @@ def render_generated_downloads() -> None:
                 )
 
 
-@st.dialog("ZIP 이메일 발송")
+@st.dialog("서류 발송")
 def open_zip_email_dialog() -> None:
     last_zip_path = st.session_state.get("last_generated_zip", "")
 
     if not last_zip_path or not Path(last_zip_path).exists():
-        st.warning("먼저 출장보고서를 생성하면 ZIP 이메일 발송이 가능합니다.")
+        st.warning("먼저 출장보고서를 생성하면 이메일로 서류 발송이 가능합니다.")
         return
 
     st.caption(f"발송 대상 ZIP: {Path(last_zip_path).name}")
@@ -1404,14 +1404,14 @@ with action_cols[0]:
 
 with action_cols[1]:
     email_clicked = st.button(
-        "ZIP 이메일 발송",
+        "서류 발송",
         key="open_zip_email_dialog_btn",
         disabled=not email_enabled,
         use_container_width=True,
     )
 
 if not email_enabled:
-    st.caption("보고서 생성 전에는 ZIP 이메일 발송 버튼이 비활성화됩니다.")
+    st.caption("보고서 생성 전에는 서류 발송 버튼이 비활성화됩니다.")
 
 if email_clicked:
     open_zip_email_dialog()
