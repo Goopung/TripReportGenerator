@@ -23,7 +23,7 @@ from reportlab.pdfgen import canvas
 from pypdf import PdfReader, PdfWriter
 
 from core.data_model import ReasonStatementData, TripReportData
-from core.file_utils import IMAGE_EXTS, PDF_EXTS, collect_paths, korean_date
+from core.file_utils import IMAGE_EXTS, PDF_EXTS, collect_paths
 
 
 def _maybe_pdf_to_images(path: str | Path, temp_dir: str | Path, max_pages: int = 3) -> list[str]:
@@ -36,6 +36,7 @@ def _maybe_pdf_to_images(path: str | Path, temp_dir: str | Path, max_pages: int 
 
     try:
         import fitz
+
         doc = fitz.open(str(path))
         out = []
         for idx in range(min(max_pages, len(doc))):
@@ -95,6 +96,7 @@ def _add_image_list_docx(doc: Document, paths: list[str], temp_dir: str | Path, 
 def _dot_date(value: str) -> str:
     try:
         from datetime import datetime
+
         d = datetime.fromisoformat(str(value)).date()
         return f"{d.year}. {d.month}. {d.day}"
     except Exception:
@@ -104,6 +106,7 @@ def _dot_date(value: str) -> str:
 def _month_day(value: str) -> str:
     try:
         from datetime import datetime
+
         d = datetime.fromisoformat(str(value)).date()
         return f"{d.month}월 {d.day}일"
     except Exception:
@@ -132,6 +135,39 @@ def _bullet_docx(doc: Document, text: str, level: int = 0) -> None:
     r = p.add_run(prefix + str(text).strip())
     r.font.name = "Batang"
     r.font.size = Pt(10.5)
+
+
+def _clean_expected_effect_line(text: str) -> str:
+    text = str(text).strip()
+    text = re.sub(r"^\s*[-•●*]\s*", "", text)
+    text = re.sub(r"^\s*\d+[\).]\s*", "", text)
+    return text.strip()
+
+
+def _expected_effect_paragraphs(data: TripReportData) -> list[str]:
+    expected_effect_text = getattr(data, "expected_effect_text", "").strip()
+
+    if not expected_effect_text:
+        expected_effect_text = (
+            f"이번 {data.conference_name} 참여를 통해 파악한 최신 연구 동향과 주요 세션 내용은 "
+            f"향후 본 연구과제의 연구 방향을 구체화하고 관련 분야의 학술적 네트워크를 확대하는 데 "
+            f"기여할 것으로 기대된다."
+        )
+
+    paragraphs = []
+    for line in expected_effect_text.split("\n"):
+        cleaned = _clean_expected_effect_line(line)
+        if cleaned:
+            paragraphs.append(cleaned)
+
+    if not paragraphs:
+        paragraphs.append(
+            f"이번 {data.conference_name} 참여를 통해 파악한 최신 연구 동향과 주요 세션 내용은 "
+            f"향후 본 연구과제의 연구 방향을 구체화하고 관련 분야의 학술적 네트워크를 확대하는 데 "
+            f"기여할 것으로 기대된다."
+        )
+
+    return paragraphs
 
 
 def _set_docx_cell(cell, text: str, bold: bool = False, shade: str | None = None, align=WD_ALIGN_PARAGRAPH.CENTER) -> None:
@@ -172,7 +208,6 @@ def _add_docx_image_grid(doc: Document, paths: list[str], temp_dir: str | Path, 
     doc.add_paragraph("")
 
 
-
 def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
     output_path = Path(output_path)
     temp_dir = output_path.parent / "_temp_images_docx"
@@ -189,7 +224,6 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
     section.left_margin = Inches(0.85)
     section.right_margin = Inches(0.85)
 
-    # Cover page - similar to the reference report.
     doc.add_paragraph("\n\n\n\n\n")
     p = doc.add_paragraph()
     p.alignment = WD_ALIGN_PARAGRAPH.CENTER
@@ -264,7 +298,6 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
     if data.traveler_name:
         _bullet_docx(doc, data.traveler_name, 0)
 
-    # Boarding pass / transportation evidence.
     transport_paths = []
     for key in ["boarding_pass", "e_ticket", "ticket_receipt", "acceptance_letter"]:
         transport_paths.extend(data.transport_files.get(key, []))
@@ -272,7 +305,6 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
         _bullet_docx(doc, "탑승권 및 항공권 관련 증빙", 0)
         _add_docx_image_grid(doc, transport_paths, temp_dir, cols=2, width_inches=2.8)
 
-    # Receipts.
     all_receipts = []
     for row in data.daily_schedule:
         all_receipts.extend(data.daily_receipts.get(str(row.get("date", "")), []))
@@ -282,7 +314,6 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
 
     doc.add_page_break()
 
-    # Field visit/conference photos by date.
     _bullet_docx(doc, f"{data.conference_name} 학회 참석 사진", 0)
     for row in data.daily_schedule:
         date_key = str(row.get("date", ""))
@@ -296,7 +327,6 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
         r.font.size = Pt(12)
         _add_docx_image_grid(doc, paths, temp_dir, cols=2, width_inches=2.8)
 
-    # Lodging and other evidence.
     lodging_paths = []
     lodging_paths.extend(data.lodging_files.get("lodging_confirmation", []))
     lodging_paths.extend(data.lodging_files.get("lodging_receipt", []))
@@ -315,16 +345,15 @@ def generate_trip_docx(data: TripReportData, output_path: str | Path) -> str:
 
     doc.add_page_break()
     _section_docx(doc, "기대효과")
-    _bullet_docx(
-        doc,
-        f"이번 {data.conference_name} 참여를 통해 파악한 최신 연구 동향과 주요 세션 내용은 향후 본 연구과제의 연구 방향을 구체화하고 관련 분야의 학술적 네트워크를 확대하는 데 기여할 것으로 기대된다.",
-        0,
-    )
+    for paragraph in _expected_effect_paragraphs(data):
+        _bullet_docx(
+            doc,
+            f"{paragraph}",
+            0,
+        )
 
     doc.save(str(output_path))
     return str(output_path)
-
-
 
 
 def _font_candidates(kind: str) -> list[str]:
@@ -332,16 +361,13 @@ def _font_candidates(kind: str) -> list[str]:
         env = os.getenv("KOREAN_FONT_PATH", "").strip()
         candidates = [env] if env else []
         candidates.extend([
-            # Windows - Batang first
             "C:/Windows/Fonts/batang.ttc",
             "C:/Windows/Fonts/batang.ttf",
             "C:/Windows/Fonts/malgun.ttf",
             "C:/Windows/Fonts/gulim.ttc",
-            # macOS
             "/System/Library/Fonts/AppleSDGothicNeo.ttc",
             "/Library/Fonts/AppleGothic.ttf",
             "/System/Library/Fonts/Supplemental/AppleGothic.ttf",
-            # Linux
             "/usr/share/fonts/opentype/noto/NotoSerifCJK-Regular.ttc",
             "/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc",
             "/usr/share/fonts/opentype/noto/NotoSansCJK-Regular.ttc",
@@ -354,13 +380,10 @@ def _font_candidates(kind: str) -> list[str]:
     env = os.getenv("ENGLISH_FONT_PATH", "").strip()
     candidates = [env] if env else []
     candidates.extend([
-        # Windows Times New Roman
         "C:/Windows/Fonts/times.ttf",
         "C:/Windows/Fonts/timesbd.ttf",
-        # macOS
         "/Library/Fonts/Times New Roman.ttf",
         "/System/Library/Fonts/Supplemental/Times New Roman.ttf",
-        # Linux common Times-like fallback
         "/usr/share/fonts/truetype/msttcorefonts/Times_New_Roman.ttf",
         "/usr/share/fonts/truetype/liberation/LiberationSerif-Regular.ttf",
         "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf",
@@ -617,7 +640,6 @@ def generate_trip_pdf(data: TripReportData, output_path: str | Path) -> str:
     )
     story: list = []
 
-    # Cover page.
     story.append(Spacer(1, 78 * mm))
     story.append(_p(f"{data.conference_name} 학회 참석", styles["title"]))
     story.append(Spacer(1, 4 * mm))
@@ -728,12 +750,13 @@ def generate_trip_pdf(data: TripReportData, output_path: str | Path) -> str:
 
     story.append(PageBreak())
     _section_pdf(story, "기대효과", styles)
-    _bullet_pdf(
-        story,
-        f"이번 {data.conference_name} 참여를 통해 파악한 최신 연구 동향과 주요 세션 내용은 향후 본 연구과제의 연구 방향을 구체화하고 관련 분야의 학술적 네트워크를 확대하는 데 기여할 것으로 기대된다.",
-        styles,
-        0,
-    )
+    for paragraph in _expected_effect_paragraphs(data):
+        _bullet_pdf(
+            story,
+            f"{paragraph}",
+            styles,
+            0,
+        )
 
     doc.build(story, onFirstPage=_draw_page_number, onLaterPages=_draw_page_number)
     return str(output_path)
@@ -802,19 +825,12 @@ def generate_reason_docx(reason: ReasonStatementData, output_path: str | Path) -
     return str(output_path)
 
 
-
-
 def generate_reason_pdf_on_template(
     reason: ReasonStatementData,
     output_path: str | Path,
     template_path: str | Path,
     reason_date: str,
 ) -> str:
-    """Fill the official 사유서 PDF template by stamping text on top.
-
-    The template itself is preserved. Only user-entered/generated values are drawn.
-    Korean text uses a Batang-family font when available; English uses Times New Roman when available.
-    """
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     template_path = Path(template_path)
@@ -829,7 +845,6 @@ def generate_reason_pdf_on_template(
     packet = io.BytesIO()
     c = canvas.Canvas(packet, pagesize=(w, h))
 
-    # Header table fields - coordinates are calibrated for the uploaded A4 template.
     field_font = 9.5
     _draw_mixed_line(c, reason.principal_affiliation, 132, 741, field_font, korean_font, english_font)
     _draw_mixed_line(c, reason.principal_name, 390, 741, field_font, korean_font, english_font)
@@ -837,7 +852,6 @@ def generate_reason_pdf_on_template(
     _draw_mixed_line(c, reason.research_period, 390, 719, field_font, korean_font, english_font)
     _draw_mixed_line(c, reason.project_title, 132, 696, field_font, korean_font, english_font)
 
-    # Title and content fields.
     title_font = 10.5
     _draw_mixed_paragraph(
         c,
@@ -866,9 +880,9 @@ def generate_reason_pdf_on_template(
         english_font=english_font,
     )
 
-    # Date line: fill 년 월 일 at the bottom.
     try:
         from datetime import datetime
+
         parsed = datetime.fromisoformat(str(reason_date)).date()
         year = str(parsed.year)
         month = f"{parsed.month:02d}"
@@ -883,7 +897,6 @@ def generate_reason_pdf_on_template(
     _draw_mixed_line(c, month, 492, 162, 10, korean_font, english_font)
     _draw_mixed_line(c, day, 516, 162, 10, korean_font, english_font)
 
-    # Research director signature line.
     _draw_mixed_line(c, reason.principal_name, 452, 140, 10, korean_font, english_font)
 
     c.save()
@@ -899,6 +912,7 @@ def generate_reason_pdf_on_template(
         writer.write(f)
 
     return str(output_path)
+
 
 def create_zip(data: TripReportData, output_zip: str | Path, report_docx: str, report_pdf: str, reason_docx: str | None = None) -> str:
     output_zip = Path(output_zip)
