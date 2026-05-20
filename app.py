@@ -1,7 +1,10 @@
 import json
 import os
 import re
+import smtplib
+import ssl
 from datetime import date
+from email.message import EmailMessage
 from pathlib import Path
 
 import pandas as pd
@@ -36,6 +39,9 @@ OUTPUT_ROOT = APP_ROOT / "data" / "outputs"
 UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
+DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
+MAX_EMAIL_ATTACHMENT_BYTES = 24 * 1024 * 1024
+
 
 st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide")
 
@@ -51,6 +57,10 @@ def init_state() -> None:
         "reason_content": "",
         "last_missing": [],
         "last_checklist": [],
+        "last_generated_docx": "",
+        "last_generated_pdf": "",
+        "last_generated_reason_pdf": "",
+        "last_generated_zip": "",
     }
     for key, value in defaults.items():
         if key not in st.session_state:
@@ -145,6 +155,99 @@ def download_button(path: str, label: str, mime: str) -> None:
             st.download_button(label=label, data=f.read(), file_name=p.name, mime=mime)
 
 
+def get_config_value(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+
+    try:
+        value = st.secrets.get(name, "")
+        if value:
+            return str(value)
+    except Exception:
+        pass
+
+    return default
+
+
+def get_bool_config_value(name: str, default: bool = True) -> bool:
+    value = get_config_value(name, str(default)).strip().lower()
+    return value in {"1", "true", "yes", "y", "on"}
+
+
+def get_smtp_config() -> dict:
+    smtp_host = st.session_state.get("smtp_host") or get_config_value("SMTP_HOST", "smtp.gmail.com")
+    smtp_port = int(st.session_state.get("smtp_port") or get_config_value("SMTP_PORT", "587"))
+    smtp_username = st.session_state.get("smtp_username") or get_config_value("SMTP_USERNAME", "")
+    smtp_password = st.session_state.get("smtp_password") or get_config_value("SMTP_PASSWORD", "")
+    smtp_from = st.session_state.get("smtp_from") or get_config_value("SMTP_FROM", smtp_username)
+    smtp_use_tls = bool(st.session_state.get("smtp_use_tls", get_bool_config_value("SMTP_USE_TLS", True)))
+
+    if not smtp_host:
+        raise ValueError("SMTP_HOST가 설정되지 않았습니다.")
+    if not smtp_username:
+        raise ValueError("SMTP_USERNAME이 설정되지 않았습니다.")
+    if not smtp_password:
+        raise ValueError("SMTP_PASSWORD가 설정되지 않았습니다.")
+    if not smtp_from:
+        raise ValueError("SMTP_FROM 또는 SMTP_USERNAME이 설정되지 않았습니다.")
+
+    return {
+        "host": smtp_host,
+        "port": smtp_port,
+        "username": smtp_username,
+        "password": smtp_password,
+        "sender": smtp_from,
+        "use_tls": smtp_use_tls,
+    }
+
+
+def send_email_with_attachment(
+    recipient: str,
+    subject: str,
+    body: str,
+    attachment_path: str | Path,
+) -> None:
+    attachment = Path(attachment_path)
+    if not attachment.exists():
+        raise FileNotFoundError(f"첨부파일을 찾을 수 없습니다: {attachment}")
+
+    if attachment.stat().st_size > MAX_EMAIL_ATTACHMENT_BYTES:
+        raise ValueError(
+            "첨부 ZIP 파일이 24MB를 초과합니다. Gmail 등 일부 SMTP 서버는 25MB 이상 첨부파일 발송을 제한할 수 있습니다."
+        )
+
+    smtp_config = get_smtp_config()
+
+    message = EmailMessage()
+    message["From"] = smtp_config["sender"]
+    message["To"] = recipient
+    message["Subject"] = subject
+    message.set_content(body)
+
+    message.add_attachment(
+        attachment.read_bytes(),
+        maintype="application",
+        subtype="zip",
+        filename=attachment.name,
+    )
+
+    context = ssl.create_default_context()
+
+    if smtp_config["port"] == 465:
+        with smtplib.SMTP_SSL(smtp_config["host"], smtp_config["port"], context=context) as server:
+            server.login(smtp_config["username"], smtp_config["password"])
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(smtp_config["host"], smtp_config["port"]) as server:
+            server.ehlo()
+            if smtp_config["use_tls"]:
+                server.starttls(context=context)
+                server.ehlo()
+            server.login(smtp_config["username"], smtp_config["password"])
+            server.send_message(message)
+
+
 init_state()
 
 with st.sidebar:
@@ -159,6 +262,37 @@ with st.sidebar:
         value=os.getenv("OPENAI_MODEL", "gpt-5.5"),
     )
     st.caption("경희대학교 연구자들을 위한 학회 출장 결과보고서 등록 시스템")
+
+    st.divider()
+    st.subheader("이메일 발송 설정")
+    st.session_state["smtp_host"] = st.text_input(
+        "SMTP Host",
+        value=get_config_value("SMTP_HOST", "smtp.gmail.com"),
+    )
+    st.session_state["smtp_port"] = st.number_input(
+        "SMTP Port",
+        min_value=1,
+        max_value=65535,
+        value=int(get_config_value("SMTP_PORT", "587")),
+        step=1,
+    )
+    st.session_state["smtp_username"] = st.text_input(
+        "SMTP Username",
+        value=get_config_value("SMTP_USERNAME", ""),
+    )
+    st.session_state["smtp_password"] = st.text_input(
+        "SMTP Password / App Password",
+        value=get_config_value("SMTP_PASSWORD", ""),
+        type="password",
+    )
+    st.session_state["smtp_from"] = st.text_input(
+        "보내는 이메일",
+        value=get_config_value("SMTP_FROM", get_config_value("SMTP_USERNAME", "")),
+    )
+    st.session_state["smtp_use_tls"] = st.checkbox(
+        "STARTTLS 사용",
+        value=get_bool_config_value("SMTP_USE_TLS", True),
+    )
 
 
 st.title("학회 출장 결과보고서 등록 시스템")
@@ -561,6 +695,11 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
 
             generated_zip = create_zip(final_data, zip_path, generated_docx, generated_pdf, reason_path)
 
+            st.session_state["last_generated_docx"] = str(generated_docx)
+            st.session_state["last_generated_pdf"] = str(generated_pdf)
+            st.session_state["last_generated_reason_pdf"] = str(reason_path) if reason_path else ""
+            st.session_state["last_generated_zip"] = str(generated_zip)
+
             st.success("생성이 완료되었습니다.")
             if missing:
                 st.warning("보고서는 생성되었지만 누락 또는 확인 필요 항목이 있습니다. 아래 체크리스트를 확인하세요.")
@@ -576,3 +715,45 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
 
         except Exception as exc:
             st.error(f"보고서 생성 실패: {exc}")
+
+    st.divider()
+    st.markdown("#### ZIP 이메일 발송")
+
+    last_zip_path = st.session_state.get("last_generated_zip", "")
+    if last_zip_path and Path(last_zip_path).exists():
+        st.caption(f"발송 대상 ZIP: {Path(last_zip_path).name}")
+
+        email_recipient = st.text_input(
+            "수신자 이메일",
+            value=DEFAULT_EMAIL_RECIPIENT,
+            key="email_recipient",
+        )
+        email_subject = st.text_input(
+            "메일 제목",
+            value=f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 송부",
+            key="email_subject",
+        )
+        email_body = st.text_area(
+            "메일 본문",
+            value=(
+                "안녕하세요.\n\n"
+                f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 파일을 첨부드립니다.\n\n"
+                "감사합니다."
+            ),
+            height=140,
+            key="email_body",
+        )
+
+        if st.button("전체 ZIP 이메일 발송", key="send_zip_email_btn"):
+            try:
+                send_email_with_attachment(
+                    recipient=email_recipient,
+                    subject=email_subject,
+                    body=email_body,
+                    attachment_path=last_zip_path,
+                )
+                st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
+            except Exception as exc:
+                st.error(f"이메일 발송 실패: {exc}")
+    else:
+        st.info("먼저 출장보고서 DOCX / PDF / ZIP을 생성하면 이메일 발송 버튼이 활성화됩니다.")
