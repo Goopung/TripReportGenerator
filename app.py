@@ -43,10 +43,11 @@ OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
 
 
-st.set_page_config(page_title="KHU Trip Report System", layout="wide", initial_sidebar_state="expanded")
-
-
-
+st.set_page_config(
+    page_title="KHU Trip Report System",
+    layout="wide",
+    initial_sidebar_state="expanded",
+)
 
 
 def apply_ui_style() -> None:
@@ -174,6 +175,7 @@ def apply_ui_style() -> None:
                 flex-direction: column;
                 align-items: flex-start;
             }
+
             .hero-panel {
                 width: 100%;
                 min-width: 0;
@@ -227,17 +229,6 @@ def apply_ui_style() -> None:
             color: #475569;
             font-size: 0.86rem;
             line-height: 1.55;
-        }
-
-        .mini-guide {
-            border: 1px solid #dbeafe;
-            background: #eff6ff;
-            color: #1e3a8a;
-            padding: 0.8rem 0.9rem;
-            border-radius: 14px;
-            font-size: 0.88rem;
-            line-height: 1.55;
-            margin: 0.5rem 0 1rem;
         }
 
         div[data-testid="stExpander"] {
@@ -312,6 +303,29 @@ def apply_ui_style() -> None:
             margin-bottom: 1rem;
             box-shadow: 0 6px 18px rgba(15, 23, 42, 0.035);
         }
+
+        .final-action-box {
+            margin-top: 1.25rem;
+            padding: 1.1rem 1.2rem;
+            border-radius: 18px;
+            border: 1px solid #dbeafe;
+            background: linear-gradient(135deg, #ffffff 0%, #f8fbff 100%);
+            box-shadow: 0 10px 26px rgba(15, 23, 42, 0.06);
+        }
+
+        .final-action-title {
+            color: #0f172a;
+            font-size: 1.1rem;
+            font-weight: 900;
+            margin-bottom: 0.25rem;
+        }
+
+        .final-action-caption {
+            color: #64748b;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            margin-bottom: 0.85rem;
+        }
         </style>
         """,
         unsafe_allow_html=True,
@@ -347,6 +361,7 @@ def render_status_cards() -> None:
     missing_count = len(st.session_state.get("last_missing", []))
 
     col1, col2, col3, col4 = st.columns(4)
+
     with col1:
         st.markdown(
             f"""
@@ -358,6 +373,7 @@ def render_status_cards() -> None:
             """,
             unsafe_allow_html=True,
         )
+
     with col2:
         st.markdown(
             f"""
@@ -369,6 +385,7 @@ def render_status_cards() -> None:
             """,
             unsafe_allow_html=True,
         )
+
     with col3:
         st.markdown(
             f"""
@@ -380,6 +397,7 @@ def render_status_cards() -> None:
             """,
             unsafe_allow_html=True,
         )
+
     with col4:
         st.markdown(
             f"""
@@ -409,7 +427,9 @@ def init_state() -> None:
         "last_generated_pdf": "",
         "last_generated_reason_pdf": "",
         "last_generated_zip": "",
+        "last_generation_notice": "",
     }
+
     for key, value in defaults.items():
         if key not in st.session_state:
             st.session_state[key] = value
@@ -432,6 +452,7 @@ def get_config_value(name: str, default: str = "") -> str:
 
 def get_float_config_value(name: str, default: float) -> float:
     raw_value = get_config_value(name, str(default)).strip()
+
     try:
         return float(raw_value)
     except ValueError:
@@ -496,6 +517,7 @@ def parse_schedule_json(text: str, dates: list[date]) -> list[dict]:
     try:
         data = json.loads(raw)
         output = []
+
         for i, d in enumerate(dates):
             if i < len(data):
                 item = data[i]
@@ -508,39 +530,47 @@ def parse_schedule_json(text: str, dates: list[date]) -> list[dict]:
                 )
             else:
                 output.append({"day": i + 1, "date": iso_date(d), "content": ""})
+
         return output
     except Exception:
         output = []
         lines = [line.strip("-• 0123456789.일차") for line in raw.splitlines() if line.strip()]
+
         for i, d in enumerate(dates):
             content = lines[i] if i < len(lines) else "학회 일정 확인 및 관련 세션 참석"
             output.append({"day": i + 1, "date": iso_date(d), "content": content[:120]})
+
         return output
 
 
 def ensure_schedule_for_dates(dates: list[date]) -> None:
     signature = "|".join([iso_date(d) for d in dates])
+
     if st.session_state["date_signature"] != signature:
         st.session_state["date_signature"] = signature
         st.session_state["daily_schedule"] = [
             {"day": i + 1, "date": iso_date(d), "content": ""}
             for i, d in enumerate(dates)
         ]
+
         for i, d in enumerate(dates):
             st.session_state[f"schedule_content_{i}"] = ""
 
 
 def sync_schedule_from_widgets(dates: list[date]) -> list[dict]:
     schedule = []
+
     for i, d in enumerate(dates):
         content = st.session_state.get(f"schedule_content_{i}", "")
         schedule.append({"day": i + 1, "date": iso_date(d), "content": content})
+
     st.session_state["daily_schedule"] = schedule
     return schedule
 
 
 def apply_schedule_to_widgets(schedule: list[dict]) -> None:
     st.session_state["daily_schedule"] = schedule
+
     for i, row in enumerate(schedule):
         st.session_state[f"schedule_content_{i}"] = row.get("content", "")
 
@@ -560,9 +590,16 @@ def style_checklist(df: pd.DataFrame):
 
 def download_button(path: str, label: str, mime: str) -> None:
     p = Path(path)
+
     if p.exists():
         with open(p, "rb") as f:
-            st.download_button(label=label, data=f.read(), file_name=p.name, mime=mime, use_container_width=True)
+            st.download_button(
+                label=label,
+                data=f.read(),
+                file_name=p.name,
+                mime=mime,
+                use_container_width=True,
+            )
 
 
 def get_resend_config() -> dict:
@@ -574,6 +611,7 @@ def get_resend_config() -> dict:
 
     if not api_key:
         raise ValueError("RESEND_API_KEY가 설정되지 않았습니다. Streamlit Cloud의 App settings > Secrets에 추가하세요.")
+
     if not sender:
         raise ValueError("RESEND_FROM_EMAIL이 설정되지 않았습니다. Resend에서 사용 가능한 발신자 이메일을 설정하세요.")
 
@@ -588,8 +626,10 @@ def get_resend_config() -> dict:
 
 def normalize_recipients(recipient: str) -> list[str]:
     recipients = [email.strip() for email in re.split(r"[,;]", recipient or "") if email.strip()]
+
     if not recipients:
         raise ValueError("수신자 이메일을 입력하세요.")
+
     return recipients
 
 
@@ -599,6 +639,7 @@ def add_subject_prefix(subject: str, prefix: str) -> str:
 
     if cleaned_prefix and not cleaned_subject.startswith(cleaned_prefix):
         return f"{cleaned_prefix} {cleaned_subject}"
+
     return cleaned_subject
 
 
@@ -609,10 +650,12 @@ def send_email_with_attachment(
     attachment_path: str | Path,
 ) -> dict:
     attachment = Path(attachment_path)
+
     if not attachment.exists():
         raise FileNotFoundError(f"첨부파일을 찾을 수 없습니다: {attachment}")
 
     resend_config = get_resend_config()
+
     if attachment.stat().st_size > resend_config["max_attachment_bytes"]:
         max_mb = resend_config["max_attachment_bytes"] / 1024 / 1024
         raise ValueError(
@@ -647,6 +690,148 @@ def send_email_with_attachment(
         raise RuntimeError(f"Resend API 발송 실패: {exc}") from exc
 
 
+def render_generated_downloads() -> None:
+    generated_docx = st.session_state.get("last_generated_docx", "")
+    generated_pdf = st.session_state.get("last_generated_pdf", "")
+    generated_reason_pdf = st.session_state.get("last_generated_reason_pdf", "")
+    generated_zip = st.session_state.get("last_generated_zip", "")
+
+    has_docx = bool(generated_docx and Path(generated_docx).exists())
+    has_pdf = bool(generated_pdf and Path(generated_pdf).exists())
+    has_reason = bool(generated_reason_pdf and Path(generated_reason_pdf).exists())
+    has_zip = bool(generated_zip and Path(generated_zip).exists())
+
+    if not any([has_docx, has_pdf, has_reason, has_zip]):
+        return
+
+    st.markdown("#### 생성된 파일 다운로드")
+
+    if has_reason:
+        download_cols = st.columns(4)
+
+        with download_cols[0]:
+            if has_docx:
+                download_button(
+                    generated_docx,
+                    "DOCX 다운로드",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+
+        with download_cols[1]:
+            if has_pdf:
+                download_button(
+                    generated_pdf,
+                    "PDF 다운로드",
+                    "application/pdf",
+                )
+
+        with download_cols[2]:
+            download_button(
+                generated_reason_pdf,
+                "사유서 PDF",
+                "application/pdf",
+            )
+
+        with download_cols[3]:
+            if has_zip:
+                download_button(
+                    generated_zip,
+                    "ZIP 다운로드",
+                    "application/zip",
+                )
+    else:
+        download_cols = st.columns(3)
+
+        with download_cols[0]:
+            if has_docx:
+                download_button(
+                    generated_docx,
+                    "DOCX 다운로드",
+                    "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                )
+
+        with download_cols[1]:
+            if has_pdf:
+                download_button(
+                    generated_pdf,
+                    "PDF 다운로드",
+                    "application/pdf",
+                )
+
+        with download_cols[2]:
+            if has_zip:
+                download_button(
+                    generated_zip,
+                    "ZIP 다운로드",
+                    "application/zip",
+                )
+
+
+@st.dialog("ZIP 이메일 발송")
+def open_zip_email_dialog() -> None:
+    last_zip_path = st.session_state.get("last_generated_zip", "")
+
+    if not last_zip_path or not Path(last_zip_path).exists():
+        st.warning("먼저 출장보고서를 생성하면 ZIP 이메일 발송이 가능합니다.")
+        return
+
+    st.caption(f"발송 대상 ZIP: {Path(last_zip_path).name}")
+
+    email_recipient = st.text_input(
+        "수신자 이메일",
+        value=get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT),
+        key="email_recipient_dialog",
+    )
+    email_subject = st.text_input(
+        "메일 제목",
+        value=f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 송부",
+        key="email_subject_dialog",
+    )
+    email_body = st.text_area(
+        "메일 본문",
+        value=(
+            "안녕하세요.\n\n"
+            f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 파일을 첨부드립니다.\n\n"
+            "감사합니다."
+        ),
+        height=160,
+        key="email_body_dialog",
+    )
+
+    action_cols = st.columns(2)
+
+    with action_cols[0]:
+        if st.button(
+            "이메일 발송",
+            type="primary",
+            key="send_zip_email_dialog_btn",
+            use_container_width=True,
+        ):
+            try:
+                resend_response = send_email_with_attachment(
+                    recipient=email_recipient,
+                    subject=email_subject,
+                    body=email_body,
+                    attachment_path=last_zip_path,
+                )
+                message_id = resend_response.get("id", "")
+
+                if message_id:
+                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다. Resend ID: {message_id}")
+                else:
+                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
+            except Exception as exc:
+                st.error(f"이메일 발송 실패: {exc}")
+
+    with action_cols[1]:
+        if st.button(
+            "닫기",
+            key="close_zip_email_dialog_btn",
+            use_container_width=True,
+        ):
+            st.rerun()
+
+
 init_state()
 apply_ui_style()
 
@@ -674,9 +859,9 @@ with st.sidebar:
         help="자동생성 기능에 사용할 모델명입니다.",
     )
 
-
     st.divider()
     st.subheader("이메일 발송 설정")
+
     if get_config_value("RESEND_API_KEY", ""):
         st.success("Resend API Key 설정이 완료되었습니다.")
     else:
@@ -697,6 +882,7 @@ with st.sidebar:
 
 render_hero()
 render_status_cards()
+
 st.markdown(
     """
     <div class="block-note">
@@ -706,13 +892,18 @@ st.markdown(
     unsafe_allow_html=True,
 )
 
+
 with st.expander("Step 1. 표지 정보", expanded=True):
     st.caption("보고서 표지와 기본 제목을 구성하는 정보입니다.")
+
     col1, col2, col3 = st.columns([2, 1, 1])
+
     with col1:
         conference_name = st.text_input("학회명 *", key="conference_name")
+
     with col2:
         trip_type = st.radio("출장 구분 *", ["국내", "국외"], horizontal=True, key="trip_type")
+
     with col3:
         report_date = st.date_input("작성일", value=date.today(), key="report_date")
 
@@ -722,6 +913,7 @@ with st.expander("Step 1. 표지 정보", expanded=True):
 
 with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
     st.caption("학회 개요 자료를 업로드하고 출장목적을 자동생성하거나 직접 작성합니다.")
+
     overview_files = st.file_uploader(
         "학회 Overview / Program Overview 업로드 *",
         type=["pdf", "docx", "txt", "md", "png", "jpg", "jpeg"],
@@ -730,13 +922,16 @@ with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
     )
 
     col1, col2 = st.columns(2)
+
     with col1:
         start_date = st.date_input("출장기간 시작일 *", value=date.today(), key="start_date")
+
     with col2:
         end_date = st.date_input("출장기간 종료일 *", value=date.today(), key="end_date")
 
     trip_dates = date_range(start_date, end_date)
     ensure_schedule_for_dates(trip_dates)
+
     st.info(f"출장기간: {korean_date(start_date)} ~ {korean_date(end_date)} / 총 {len(trip_dates)}일")
 
     if st.button("Overview 텍스트 추출", key="extract_overview_btn"):
@@ -745,11 +940,13 @@ with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
         texts = [extract_text_from_file(path) for path in paths]
         extracted = "\n\n".join([t for t in texts if t.strip()])
         st.session_state["overview_paths_saved"] = paths
+
         if extracted:
             st.session_state["overview_text"] = extracted
             st.success("Overview 텍스트를 추출했습니다.")
         else:
             st.warning("텍스트 추출 결과가 없습니다. 직접 입력할 수 있습니다.")
+
         st.rerun()
 
     st.text_area(
@@ -786,11 +983,15 @@ with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
 
 with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", expanded=True):
     st.caption("출장자, 장소, 일자별 세부일정을 입력합니다.")
+
     col1, col2, col3 = st.columns(3)
+
     with col1:
         traveler_name = st.text_input("출장자 성명 *", key="traveler_name")
+
     with col2:
         destination = st.text_input("출장지 *", key="destination", placeholder="예: 이탈리아 로마")
+
     with col3:
         venue = st.text_input("학회장소 *", key="venue", placeholder="예: Rome Convention Center")
 
@@ -814,8 +1015,10 @@ with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", 
             st.error(f"세부일정 자동생성 실패: {exc}")
 
     st.markdown("#### 세부일정")
+
     for i, d in enumerate(trip_dates):
         col_day, col_content = st.columns([1, 4])
+
         with col_day:
             st.text_input(
                 "일차 / 날짜",
@@ -823,6 +1026,7 @@ with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", 
                 disabled=True,
                 key=f"day_label_{i}",
             )
+
         with col_content:
             st.text_area(
                 "출장내용",
@@ -834,6 +1038,7 @@ with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", 
 
 with st.expander("Step 4. 본 연구와 관련성 및 주요 세션 요약", expanded=True):
     st.caption("연구과제와 학회 내용의 관련성을 정리합니다.")
+
     research_theme = st.text_input("연구과제명", key="research_theme")
 
     st.text_area(
@@ -873,20 +1078,44 @@ with st.expander("Step 4. 본 연구와 관련성 및 주요 세션 요약", exp
 
 with st.expander("Step 5. 항공권 / 전자티켓 / 탑승권 관련 자료", expanded=False):
     st.caption("항공권, 탑승권, 영수증, 초청장 등 이동 관련 증빙을 업로드합니다.")
-    e_ticket_files = st.file_uploader("전자티켓 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="e_ticket_files")
-    boarding_pass_files = st.file_uploader("탑승권 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="boarding_pass_files")
-    ticket_receipt_files = st.file_uploader("티켓 영수증 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="ticket_receipt_files")
-    acceptance_letter_files = st.file_uploader("초청장 / Acceptance Letter 업로드 선택", type=["pdf", "docx", "png", "jpg", "jpeg"], accept_multiple_files=True, key="acceptance_letter_files")
+
+    e_ticket_files = st.file_uploader(
+        "전자티켓 업로드 선택",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="e_ticket_files",
+    )
+    boarding_pass_files = st.file_uploader(
+        "탑승권 업로드 *",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="boarding_pass_files",
+    )
+    ticket_receipt_files = st.file_uploader(
+        "티켓 영수증 업로드 *",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="ticket_receipt_files",
+    )
+    acceptance_letter_files = st.file_uploader(
+        "초청장 / Acceptance Letter 업로드 선택",
+        type=["pdf", "docx", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="acceptance_letter_files",
+    )
 
     use_research_card = st.checkbox("연구비카드에서 지출함", value=True, key="use_research_card")
     personal_card_reason = ""
+
     if not use_research_card:
         personal_card_reason = st.text_area("개인카드 사용 사유", key="personal_card_reason", height=100)
 
 
 with st.expander("Step 6. 일자별 영수증 업로드", expanded=False):
     st.caption("출장기간 각 날짜별 영수증을 업로드합니다.")
+
     receipt_uploads = {}
+
     for i, d in enumerate(trip_dates):
         key = iso_date(d)
         receipt_uploads[key] = st.file_uploader(
@@ -899,6 +1128,7 @@ with st.expander("Step 6. 일자별 영수증 업로드", expanded=False):
 
 with st.expander("Step 7. 일자별 출장 사진 업로드", expanded=False):
     st.caption("일자별 현장 방문 또는 학회 참석 사진을 업로드합니다.")
+
     skip_first_photo = st.checkbox(
         "국외 출장의 학회 시작 전날 이동일 사진 생략 적용",
         value=False,
@@ -907,10 +1137,12 @@ with st.expander("Step 7. 일자별 출장 사진 업로드", expanded=False):
     )
 
     photo_uploads = {}
+
     for i, d in enumerate(trip_dates):
         key = iso_date(d)
         st.markdown(f"#### {i + 1}일차 / {korean_date(d)}")
         st.caption(f"출장내용: {st.session_state.get(f'schedule_content_{i}', '') or '미입력'}")
+
         photo_uploads[key] = st.file_uploader(
             f"{i + 1}일차 사진 *",
             type=["png", "jpg", "jpeg"],
@@ -921,32 +1153,77 @@ with st.expander("Step 7. 일자별 출장 사진 업로드", expanded=False):
 
 with st.expander("Step 8. 숙박확인서 / 숙박 영수증", expanded=False):
     st.caption("숙박확인서와 숙박 영수증을 업로드합니다.")
-    lodging_confirmation_files = st.file_uploader("숙박확인서 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="lodging_confirmation_files")
-    lodging_receipt_files = st.file_uploader("숙박 영수증 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="lodging_receipt_files")
+
+    lodging_confirmation_files = st.file_uploader(
+        "숙박확인서 업로드 *",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="lodging_confirmation_files",
+    )
+    lodging_receipt_files = st.file_uploader(
+        "숙박 영수증 업로드 *",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="lodging_receipt_files",
+    )
 
 
 reason_enabled = False
 
 with st.expander("Step 9. 추가 제출서류 및 사유서", expanded=False):
     st.caption("추가 제출서류와 필요 시 사유서를 생성합니다.")
-    conference_intro_files = st.file_uploader("학회 소개자료 업로드 선택", type=["pdf", "docx", "png", "jpg", "jpeg"], accept_multiple_files=True, key="conference_intro_files")
-    registration_statement_files = st.file_uploader("등록비 비용 명세 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="registration_statement_files")
-    registration_invoice_files = st.file_uploader("청구서 및 인보이스/영수증 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="registration_invoice_files")
-    acknowledgement_paper_files = st.file_uploader("사사 acknowledgement 기재 논문 원본 업로드 선택", type=["pdf", "docx"], accept_multiple_files=True, key="acknowledgement_paper_files")
+
+    conference_intro_files = st.file_uploader(
+        "학회 소개자료 업로드 선택",
+        type=["pdf", "docx", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="conference_intro_files",
+    )
+    registration_statement_files = st.file_uploader(
+        "등록비 비용 명세 업로드 선택",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="registration_statement_files",
+    )
+    registration_invoice_files = st.file_uploader(
+        "청구서 및 인보이스/영수증 업로드 선택",
+        type=["pdf", "png", "jpg", "jpeg"],
+        accept_multiple_files=True,
+        key="registration_invoice_files",
+    )
+    acknowledgement_paper_files = st.file_uploader(
+        "사사 acknowledgement 기재 논문 원본 업로드 선택",
+        type=["pdf", "docx"],
+        accept_multiple_files=True,
+        key="acknowledgement_paper_files",
+    )
 
     st.divider()
+
     reason_enabled = st.checkbox("사유서 생성", value=(not use_research_card), key="reason_enabled")
+
     if reason_enabled:
         col1, col2 = st.columns(2)
+
         with col1:
             principal_affiliation = st.text_input("연구책임자 소속", key="principal_affiliation")
             funding_agency = st.text_input("지원기관", key="funding_agency")
             project_title = st.text_input("연구과제명", key="project_title")
+
         with col2:
             principal_name = st.text_input("연구책임자 성명", key="principal_name")
-            research_period = st.text_input("당해연도 연구기간", key="research_period", placeholder="예: 2026.03.01 ~ 2027.02.28")
+            research_period = st.text_input(
+                "당해연도 연구기간",
+                key="research_period",
+                placeholder="예: 2026.03.01 ~ 2027.02.28",
+            )
 
-        st.text_area("사유서 작성 참고 내용", key="reason_context", height=100, placeholder="예: 개인카드 사용 사유, 증빙자료 누락/대체 제출 사유 등")
+        st.text_area(
+            "사유서 작성 참고 내용",
+            key="reason_context",
+            height=100,
+            placeholder="예: 개인카드 사용 사유, 증빙자료 누락/대체 제출 사유 등",
+        )
 
         if st.button("사유서 제목/내용 자동생성", key="generate_reason_btn"):
             prompt = f"""
@@ -979,6 +1256,7 @@ def build_current_data(save_files: bool = False) -> TripReportData:
 
     if save_files:
         overview_paths = save_uploaded_files(overview_files, root / "overview", "overview")
+
         if not overview_paths:
             overview_paths = st.session_state.get("overview_paths_saved", [])
 
@@ -997,14 +1275,34 @@ def build_current_data(save_files: bool = False) -> TripReportData:
             for k, v in photo_uploads.items()
         }
         lodging_files = {
-            "lodging_confirmation": save_uploaded_files(lodging_confirmation_files, root / "lodging", "lodging_confirmation"),
-            "lodging_receipt": save_uploaded_files(lodging_receipt_files, root / "lodging", "lodging_receipt"),
+            "lodging_confirmation": save_uploaded_files(
+                lodging_confirmation_files,
+                root / "lodging",
+                "lodging_confirmation",
+            ),
+            "lodging_receipt": save_uploaded_files(
+                lodging_receipt_files,
+                root / "lodging",
+                "lodging_receipt",
+            ),
         }
         extra_files = {
             "conference_intro": save_uploaded_files(conference_intro_files, root / "extra", "conference_intro"),
-            "registration_statement": save_uploaded_files(registration_statement_files, root / "extra", "registration_statement"),
-            "registration_invoice": save_uploaded_files(registration_invoice_files, root / "extra", "registration_invoice"),
-            "acknowledgement_paper": save_uploaded_files(acknowledgement_paper_files, root / "extra", "acknowledgement_paper"),
+            "registration_statement": save_uploaded_files(
+                registration_statement_files,
+                root / "extra",
+                "registration_statement",
+            ),
+            "registration_invoice": save_uploaded_files(
+                registration_invoice_files,
+                root / "extra",
+                "registration_invoice",
+            ),
+            "acknowledgement_paper": save_uploaded_files(
+                acknowledgement_paper_files,
+                root / "extra",
+                "acknowledgement_paper",
+            ),
         }
     else:
         overview_paths = st.session_state.get("overview_paths_saved", []) or (["uploaded"] if overview_files else [])
@@ -1067,172 +1365,112 @@ def build_current_data(save_files: bool = False) -> TripReportData:
     )
 
 
-with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expanded=True):
-    st.caption("누락 항목을 확인하고 최종 보고서 파일 및 ZIP 패키지를 생성합니다.")
-    if st.button("현재 입력 기준 누락 검사", key="check_missing_btn"):
-        current_data = build_current_data(save_files=False)
-        st.session_state["last_missing"] = check_missing_documents(current_data)
-        st.session_state["last_checklist"] = checklist_rows(current_data)
+st.markdown(
+    """
+    <div class="final-action-box">
+        <div class="final-action-title">최종 작업</div>
+        <div class="final-action-caption">출장보고서를 생성한 후 ZIP 이메일 발송 버튼이 활성화됩니다.</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
-    if st.session_state.get("last_checklist"):
-        df = pd.DataFrame(st.session_state["last_checklist"])
-        st.dataframe(style_checklist(df), use_container_width=True)
-
-    if st.session_state.get("last_missing"):
-        st.error("누락 또는 확인 필요 항목")
-        for item in st.session_state["last_missing"]:
-            st.write(f"- {item}")
-
-    st.divider()
-
-    if st.button("출장보고서 DOCX / PDF / ZIP 생성", type="primary", key="generate_report_btn"):
-        try:
-            with st.spinner("기대효과 자동생성 중입니다."):
-                try:
-                    st.session_state["expected_effect_text"] = generate_expected_effect_text()
-                except Exception:
-                    st.session_state["expected_effect_text"] = get_default_expected_effect()
-
-            final_data = build_current_data(save_files=True)
-            missing = check_missing_documents(final_data)
-            st.session_state["last_missing"] = missing
-            st.session_state["last_checklist"] = checklist_rows(final_data)
-
-            run_id = f"{date.today().isoformat()}_{slugify(conference_name)}"
-            out_dir = OUTPUT_ROOT / run_id
-            out_dir.mkdir(parents=True, exist_ok=True)
-
-            base_name = slugify(conference_name or "Trip_Report")
-            docx_path = out_dir / f"{base_name}_출장결과보고서.docx"
-            pdf_path = out_dir / f"{base_name}_출장결과보고서.pdf"
-            zip_path = out_dir / f"{base_name}_출장결과보고서_패키지.zip"
-
-            generated_docx = generate_trip_docx(final_data, docx_path)
-            generated_pdf = generate_trip_pdf(final_data, pdf_path)
-
-            reason_path = None
-            if final_data.reason_statement.enabled:
-                template_path = APP_ROOT / "templates" / "사유서_template.pdf"
-                reason_path = generate_reason_pdf_on_template(
-                    final_data.reason_statement,
-                    out_dir / f"{base_name}_사유서.pdf",
-                    template_path,
-                    final_data.report_date,
-                )
-
-            generated_zip = create_zip(final_data, zip_path, generated_docx, generated_pdf, reason_path)
-
-            st.session_state["last_generated_docx"] = str(generated_docx)
-            st.session_state["last_generated_pdf"] = str(generated_pdf)
-            st.session_state["last_generated_reason_pdf"] = str(reason_path) if reason_path else ""
-            st.session_state["last_generated_zip"] = str(generated_zip)
-
-            st.success("생성이 완료되었습니다.")
-            if missing:
-                st.warning("보고서는 생성되었지만 누락 또는 확인 필요 항목이 있습니다. 아래 체크리스트를 확인하세요.")
-
-            if reason_path:
-                download_cols = st.columns(4)
-
-                with download_cols[0]:
-                    download_button(
-                        generated_docx,
-                        "DOCX 다운로드",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    )
-
-                with download_cols[1]:
-                    download_button(
-                        generated_pdf,
-                        "PDF 다운로드",
-                        "application/pdf",
-                    )
-
-                with download_cols[2]:
-                    download_button(
-                        reason_path,
-                        "사유서 PDF",
-                        "application/pdf",
-                    )
-
-                with download_cols[3]:
-                    download_button(
-                        generated_zip,
-                        "ZIP 다운로드",
-                        "application/zip",
-                    )
-            else:
-                download_cols = st.columns(3)
-
-                with download_cols[0]:
-                    download_button(
-                        generated_docx,
-                        "DOCX 다운로드",
-                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-                    )
-
-                with download_cols[1]:
-                    download_button(
-                        generated_pdf,
-                        "PDF 다운로드",
-                        "application/pdf",
-                    )
-
-                with download_cols[2]:
-                    download_button(
-                        generated_zip,
-                        "ZIP 다운로드",
-                        "application/zip",
-                    )
-
-            df = pd.DataFrame(st.session_state["last_checklist"])
-            st.dataframe(style_checklist(df), use_container_width=True)
-
-        except Exception as exc:
-            st.error(f"보고서 생성 실패: {exc}")
-
-    st.divider()
-    st.markdown("#### ZIP 이메일 발송")
-
-    last_zip_path = st.session_state.get("last_generated_zip", "")
-    if last_zip_path and Path(last_zip_path).exists():
-        st.caption(f"발송 대상 ZIP: {Path(last_zip_path).name}")
-
-        email_recipient = st.text_input(
-            "수신자 이메일",
-            value=get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT),
-            key="email_recipient",
-        )
-        email_subject = st.text_input(
-            "메일 제목",
-            value=f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 송부",
-            key="email_subject",
-        )
-        email_body = st.text_area(
-            "메일 본문",
-            value=(
-                "안녕하세요.\n\n"
-                f"{conference_name or '학회'} 출장결과보고서 ZIP 패키지 파일을 첨부드립니다.\n\n"
-                "감사합니다."
-            ),
-            height=140,
-            key="email_body",
-        )
-
-        if st.button("전체 ZIP 이메일 발송", key="send_zip_email_btn"):
-            try:
-                resend_response = send_email_with_attachment(
-                    recipient=email_recipient,
-                    subject=email_subject,
-                    body=email_body,
-                    attachment_path=last_zip_path,
-                )
-                message_id = resend_response.get("id", "")
-                if message_id:
-                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다. Resend ID: {message_id}")
-                else:
-                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
-            except Exception as exc:
-                st.error(f"이메일 발송 실패: {exc}")
+notice = st.session_state.get("last_generation_notice", "")
+if notice:
+    if "누락" in notice or "확인 필요" in notice:
+        st.warning(notice)
     else:
-        st.info("먼저 출장보고서 DOCX / PDF / ZIP을 생성하면 이메일 발송 버튼이 활성화됩니다.")
+        st.success(notice)
+    st.session_state["last_generation_notice"] = ""
+
+last_zip_path = st.session_state.get("last_generated_zip", "")
+email_enabled = bool(last_zip_path and Path(last_zip_path).exists())
+
+action_cols = st.columns(2)
+
+with action_cols[0]:
+    generate_clicked = st.button(
+        "출장보고서 생성",
+        type="primary",
+        key="generate_report_btn",
+        use_container_width=True,
+    )
+
+with action_cols[1]:
+    email_clicked = st.button(
+        "ZIP 이메일 발송",
+        key="open_zip_email_dialog_btn",
+        disabled=not email_enabled,
+        use_container_width=True,
+    )
+
+if not email_enabled:
+    st.caption("보고서 생성 전에는 ZIP 이메일 발송 버튼이 비활성화됩니다.")
+
+if email_clicked:
+    open_zip_email_dialog()
+
+if generate_clicked:
+    try:
+        with st.spinner("기대효과 자동생성 중입니다."):
+            try:
+                st.session_state["expected_effect_text"] = generate_expected_effect_text()
+            except Exception:
+                st.session_state["expected_effect_text"] = get_default_expected_effect()
+
+        final_data = build_current_data(save_files=True)
+        missing = check_missing_documents(final_data)
+        st.session_state["last_missing"] = missing
+        st.session_state["last_checklist"] = checklist_rows(final_data)
+
+        run_id = f"{date.today().isoformat()}_{slugify(conference_name)}"
+        out_dir = OUTPUT_ROOT / run_id
+        out_dir.mkdir(parents=True, exist_ok=True)
+
+        base_name = slugify(conference_name or "Trip_Report")
+        docx_path = out_dir / f"{base_name}_출장결과보고서.docx"
+        pdf_path = out_dir / f"{base_name}_출장결과보고서.pdf"
+        zip_path = out_dir / f"{base_name}_출장결과보고서_패키지.zip"
+
+        generated_docx = generate_trip_docx(final_data, docx_path)
+        generated_pdf = generate_trip_pdf(final_data, pdf_path)
+
+        reason_path = None
+
+        if final_data.reason_statement.enabled:
+            template_path = APP_ROOT / "templates" / "사유서_template.pdf"
+            reason_path = generate_reason_pdf_on_template(
+                final_data.reason_statement,
+                out_dir / f"{base_name}_사유서.pdf",
+                template_path,
+                final_data.report_date,
+            )
+
+        generated_zip = create_zip(final_data, zip_path, generated_docx, generated_pdf, reason_path)
+
+        st.session_state["last_generated_docx"] = str(generated_docx)
+        st.session_state["last_generated_pdf"] = str(generated_pdf)
+        st.session_state["last_generated_reason_pdf"] = str(reason_path) if reason_path else ""
+        st.session_state["last_generated_zip"] = str(generated_zip)
+
+        if missing:
+            st.session_state["last_generation_notice"] = "보고서는 생성되었지만 누락 또는 확인 필요 항목이 있습니다. 아래 체크리스트를 확인하세요."
+        else:
+            st.session_state["last_generation_notice"] = "출장보고서 생성이 완료되었습니다."
+
+        st.rerun()
+
+    except Exception as exc:
+        st.error(f"보고서 생성 실패: {exc}")
+
+render_generated_downloads()
+
+if st.session_state.get("last_checklist"):
+    st.markdown("#### 제출서류 체크리스트")
+    df = pd.DataFrame(st.session_state["last_checklist"])
+    st.dataframe(style_checklist(df), use_container_width=True)
+
+if st.session_state.get("last_missing"):
+    st.error("누락 또는 확인 필요 항목")
+    for item in st.session_state["last_missing"]:
+        st.write(f"- {item}")
