@@ -674,19 +674,6 @@ with st.sidebar:
         help="자동생성 기능에 사용할 모델명입니다.",
     )
 
-    st.markdown(
-        """
-        <div class="mini-guide">
-            진행 순서<br>
-            1. 표지 정보 입력<br>
-            2. Overview 추출 및 본문 자동생성<br>
-            3. 증빙자료 업로드<br>
-            4. 누락 검사 후 DOCX, PDF, ZIP 생성<br>
-            5. ZIP 이메일 발송
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     st.divider()
     st.subheader("이메일 발송 설정")
