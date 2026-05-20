@@ -286,7 +286,7 @@ with st.sidebar:
     st.divider()
     st.subheader("이메일 발송 설정")
     if get_config_value("RESEND_API_KEY", ""):
-        st.success("Resend 서비스가 준비되었습니다.")
+        st.success("Resend API 준비되었습니다.")
     else:
         st.warning("RESEND_API_KEY가 설정되지 않았습니다.")
 
