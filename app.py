@@ -43,7 +43,269 @@ OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
 
 
-st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide")
+st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide", initial_sidebar_state="expanded")
+
+
+
+
+
+def apply_ui_style() -> None:
+    st.markdown(
+        """
+        <style>
+        :root {
+            --primary: #1d4ed8;
+            --primary-dark: #1e3a8a;
+            --primary-soft: #eff6ff;
+            --border: #e5e7eb;
+            --muted: #64748b;
+            --surface: #ffffff;
+            --soft-surface: #f8fafc;
+            --success-soft: #ecfdf5;
+            --warning-soft: #fffbeb;
+            --danger-soft: #fef2f2;
+        }
+
+        .main .block-container {
+            padding-top: 1.35rem;
+            padding-bottom: 3rem;
+            max-width: 1320px;
+        }
+
+        [data-testid="stSidebar"] {
+            background: linear-gradient(180deg, #f8fafc 0%, #eef2ff 100%);
+            border-right: 1px solid var(--border);
+        }
+
+        [data-testid="stSidebar"] h1,
+        [data-testid="stSidebar"] h2,
+        [data-testid="stSidebar"] h3 {
+            color: #0f172a;
+        }
+
+        .app-hero {
+            padding: 1.45rem 1.6rem;
+            border-radius: 22px;
+            background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 52%, #2563eb 100%);
+            color: white;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+            margin-bottom: 1.1rem;
+        }
+
+        .app-hero h1 {
+            margin: 0;
+            font-size: 2rem;
+            line-height: 1.25;
+            letter-spacing: -0.02em;
+        }
+
+        .app-hero p {
+            margin: 0.55rem 0 0;
+            color: rgba(255, 255, 255, 0.82);
+            font-size: 0.98rem;
+        }
+
+        .status-card {
+            border: 1px solid var(--border);
+            background: var(--surface);
+            border-radius: 18px;
+            padding: 1rem 1.05rem;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, 0.05);
+            min-height: 92px;
+        }
+
+        .status-card .label {
+            color: var(--muted);
+            font-size: 0.82rem;
+            margin-bottom: 0.35rem;
+            font-weight: 600;
+        }
+
+        .status-card .value {
+            color: #0f172a;
+            font-size: 1.05rem;
+            font-weight: 800;
+            margin-bottom: 0.15rem;
+        }
+
+        .status-card .hint {
+            color: #64748b;
+            font-size: 0.8rem;
+        }
+
+        .sidebar-card {
+            border: 1px solid rgba(148, 163, 184, 0.25);
+            background: rgba(255, 255, 255, 0.72);
+            border-radius: 16px;
+            padding: 0.95rem 1rem;
+            box-shadow: 0 10px 24px rgba(15, 23, 42, 0.05);
+            margin: 0.6rem 0 1rem;
+        }
+
+        .sidebar-card-title {
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 0.35rem;
+        }
+
+        .sidebar-card-text {
+            color: #475569;
+            font-size: 0.86rem;
+            line-height: 1.55;
+        }
+
+        .mini-guide {
+            border: 1px solid #dbeafe;
+            background: #eff6ff;
+            color: #1e3a8a;
+            padding: 0.8rem 0.9rem;
+            border-radius: 14px;
+            font-size: 0.88rem;
+            line-height: 1.55;
+            margin: 0.5rem 0 1rem;
+        }
+
+        div[data-testid="stExpander"] {
+            border: 1px solid var(--border);
+            border-radius: 18px;
+            background: var(--surface);
+            box-shadow: 0 8px 22px rgba(15, 23, 42, 0.045);
+            margin-bottom: 1rem;
+            overflow: hidden;
+        }
+
+        div[data-testid="stExpander"] details summary {
+            background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+            border-radius: 18px;
+            font-weight: 800;
+            color: #0f172a;
+            padding-top: 0.85rem !important;
+            padding-bottom: 0.85rem !important;
+        }
+
+        div[data-testid="stTextInput"] input,
+        div[data-testid="stTextArea"] textarea,
+        div[data-testid="stDateInput"] input {
+            border-radius: 12px;
+            border-color: #dbe3ef;
+        }
+
+        div[data-testid="stFileUploader"] section {
+            border-radius: 16px;
+            border: 1px dashed #93c5fd;
+            background: #f8fbff;
+        }
+
+        div.stButton > button,
+        div[data-testid="stDownloadButton"] > button {
+            border-radius: 12px;
+            font-weight: 700;
+            border: 1px solid #bfdbfe;
+            transition: all 0.18s ease;
+        }
+
+        div.stButton > button:hover,
+        div[data-testid="stDownloadButton"] > button:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 8px 18px rgba(37, 99, 235, 0.14);
+        }
+
+        div.stButton > button[kind="primary"] {
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            border: 0;
+            color: white;
+        }
+
+        .stDataFrame {
+            border-radius: 16px;
+            overflow: hidden;
+        }
+
+        hr {
+            margin: 1.15rem 0;
+        }
+
+        .block-note {
+            padding: 0.75rem 0.95rem;
+            border-radius: 14px;
+            background: #f8fafc;
+            border: 1px solid #e5e7eb;
+            color: #475569;
+            font-size: 0.88rem;
+            line-height: 1.5;
+            margin-bottom: 0.8rem;
+        }
+        </style>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_hero() -> None:
+    st.markdown(
+        """
+        <div class="app-hero">
+            <h1>학회 출장 결과보고서 등록 시스템</h1>
+            <p>Overview 추출, 출장목적 및 세부일정 자동생성, 증빙자료 정리, ZIP 패키지 생성 및 이메일 발송까지 한 번에 처리합니다.</p>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_status_cards() -> None:
+    openai_ready = bool(get_config_value("OPENAI_API_KEY", ""))
+    resend_ready = bool(get_config_value("RESEND_API_KEY", ""))
+    zip_path = st.session_state.get("last_generated_zip", "")
+    zip_ready = bool(zip_path and Path(zip_path).exists())
+    checklist_count = len(st.session_state.get("last_checklist", []))
+    missing_count = len(st.session_state.get("last_missing", []))
+
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.markdown(
+            f"""
+            <div class="status-card">
+                <div class="label">OpenAI 설정</div>
+                <div class="value">{'완료' if openai_ready else '확인 필요'}</div>
+                <div class="hint">자동생성 기능 사용 가능 여부</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col2:
+        st.markdown(
+            f"""
+            <div class="status-card">
+                <div class="label">Resend 이메일</div>
+                <div class="value">{'완료' if resend_ready else '확인 필요'}</div>
+                <div class="hint">ZIP 이메일 발송 설정</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col3:
+        st.markdown(
+            f"""
+            <div class="status-card">
+                <div class="label">생성 파일</div>
+                <div class="value">{'준비됨' if zip_ready else '미생성'}</div>
+                <div class="hint">DOCX, PDF, ZIP 패키지</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with col4:
+        st.markdown(
+            f"""
+            <div class="status-card">
+                <div class="label">누락 검사</div>
+                <div class="value">{missing_count}건</div>
+                <div class="hint">체크리스트 {checklist_count}개 항목 기준</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
 
 
 def init_state() -> None:
@@ -215,7 +477,7 @@ def download_button(path: str, label: str, mime: str) -> None:
     p = Path(path)
     if p.exists():
         with open(p, "rb") as f:
-            st.download_button(label=label, data=f.read(), file_name=p.name, mime=mime)
+            st.download_button(label=label, data=f.read(), file_name=p.name, mime=mime, use_container_width=True)
 
 
 def get_resend_config() -> dict:
@@ -301,19 +563,45 @@ def send_email_with_attachment(
 
 
 init_state()
+apply_ui_style()
 
 with st.sidebar:
-    st.title("출장보고서 등록 시스템")
+    st.markdown(
+        """
+        <div class="sidebar-card">
+            <div class="sidebar-card-title">출장보고서 등록 시스템</div>
+            <div class="sidebar-card-text">입력, 증빙자료 업로드, 보고서 생성, 이메일 발송까지 순서대로 진행하세요.</div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+    st.subheader("기본 설정")
     st.session_state["api_key"] = st.text_input(
         "OpenAI API Key",
         value=get_config_value("OPENAI_API_KEY", ""),
         type="password",
+        help="Streamlit Secrets 또는 환경변수에 저장된 값을 기본으로 불러옵니다.",
     )
     st.session_state["model"] = st.text_input(
         "Model",
         value=get_config_value("OPENAI_MODEL", "gpt-5.5"),
+        help="자동생성 기능에 사용할 모델명입니다.",
     )
-    st.caption("경희대학교 연구자들을 위한 학회 출장 결과보고서 등록 시스템")
+
+    st.markdown(
+        """
+        <div class="mini-guide">
+            진행 순서<br>
+            1. 표지 정보 입력<br>
+            2. Overview 추출 및 본문 자동생성<br>
+            3. 증빙자료 업로드<br>
+            4. 누락 검사 후 DOCX, PDF, ZIP 생성<br>
+            5. ZIP 이메일 발송
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
     st.divider()
     st.subheader("이메일 발송 설정")
@@ -335,9 +623,19 @@ with st.sidebar:
     st.caption("이메일 발송은 Resend API를 통해 처리됩니다. 문의 사항은 관리자(pung@khu.ac.kr)에게 연락해 주시기 바랍니다.")
 
 
-st.title("학회 출장 결과보고서 등록 시스템")
+render_hero()
+render_status_cards()
+st.markdown(
+    """
+    <div class="block-note">
+        필수 항목은 별표(*)로 표시되어 있습니다. 자동생성 버튼을 사용할 수 있으며, 생성된 내용은 사용자가 직접 수정할 수 있습니다.
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 with st.expander("Step 1. 표지 정보", expanded=True):
+    st.caption("보고서 표지와 기본 제목을 구성하는 정보입니다.")
     col1, col2, col3 = st.columns([2, 1, 1])
     with col1:
         conference_name = st.text_input("학회명 *", key="conference_name")
@@ -351,6 +649,7 @@ with st.expander("Step 1. 표지 정보", expanded=True):
 
 
 with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
+    st.caption("학회 개요 자료를 업로드하고 출장목적을 자동생성하거나 직접 작성합니다.")
     overview_files = st.file_uploader(
         "학회 Overview / Program Overview 업로드 *",
         type=["pdf", "docx", "txt", "md", "png", "jpg", "jpeg"],
@@ -414,6 +713,7 @@ with st.expander("Step 2. 학회 Overview 및 출장목적", expanded=True):
 
 
 with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", expanded=True):
+    st.caption("출장자, 장소, 일자별 세부일정을 입력합니다.")
     col1, col2, col3 = st.columns(3)
     with col1:
         traveler_name = st.text_input("출장자 성명 *", key="traveler_name")
@@ -461,6 +761,7 @@ with st.expander("Step 3. 출장자 / 출장지 / 학회장소 / 세부일정", 
 
 
 with st.expander("Step 4. 본 연구와 관련성 및 주요 세션 요약", expanded=True):
+    st.caption("연구과제와 학회 내용의 관련성을 정리합니다.")
     research_theme = st.text_input("연구과제명", key="research_theme")
 
     st.text_area(
@@ -499,6 +800,7 @@ with st.expander("Step 4. 본 연구와 관련성 및 주요 세션 요약", exp
 
 
 with st.expander("Step 5. 항공권 / 전자티켓 / 탑승권 관련 자료", expanded=False):
+    st.caption("항공권, 탑승권, 영수증, 초청장 등 이동 관련 증빙을 업로드합니다.")
     e_ticket_files = st.file_uploader("전자티켓 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="e_ticket_files")
     boarding_pass_files = st.file_uploader("탑승권 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="boarding_pass_files")
     ticket_receipt_files = st.file_uploader("티켓 영수증 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="ticket_receipt_files")
@@ -511,6 +813,7 @@ with st.expander("Step 5. 항공권 / 전자티켓 / 탑승권 관련 자료", e
 
 
 with st.expander("Step 6. 일자별 영수증 업로드", expanded=False):
+    st.caption("출장기간 각 날짜별 영수증을 업로드합니다.")
     receipt_uploads = {}
     for i, d in enumerate(trip_dates):
         key = iso_date(d)
@@ -523,6 +826,7 @@ with st.expander("Step 6. 일자별 영수증 업로드", expanded=False):
 
 
 with st.expander("Step 7. 일자별 출장 사진 업로드", expanded=False):
+    st.caption("일자별 현장 방문 또는 학회 참석 사진을 업로드합니다.")
     skip_first_photo = st.checkbox(
         "국외 출장의 학회 시작 전날 이동일 사진 생략 적용",
         value=False,
@@ -544,6 +848,7 @@ with st.expander("Step 7. 일자별 출장 사진 업로드", expanded=False):
 
 
 with st.expander("Step 8. 숙박확인서 / 숙박 영수증", expanded=False):
+    st.caption("숙박확인서와 숙박 영수증을 업로드합니다.")
     lodging_confirmation_files = st.file_uploader("숙박확인서 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="lodging_confirmation_files")
     lodging_receipt_files = st.file_uploader("숙박 영수증 업로드 *", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="lodging_receipt_files")
 
@@ -551,6 +856,7 @@ with st.expander("Step 8. 숙박확인서 / 숙박 영수증", expanded=False):
 reason_enabled = False
 
 with st.expander("Step 9. 추가 제출서류 및 사유서", expanded=False):
+    st.caption("추가 제출서류와 필요 시 사유서를 생성합니다.")
     conference_intro_files = st.file_uploader("학회 소개자료 업로드 선택", type=["pdf", "docx", "png", "jpg", "jpeg"], accept_multiple_files=True, key="conference_intro_files")
     registration_statement_files = st.file_uploader("등록비 비용 명세 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="registration_statement_files")
     registration_invoice_files = st.file_uploader("청구서 및 인보이스/영수증 업로드 선택", type=["pdf", "png", "jpg", "jpeg"], accept_multiple_files=True, key="registration_invoice_files")
@@ -690,6 +996,7 @@ def build_current_data(save_files: bool = False) -> TripReportData:
 
 
 with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expanded=True):
+    st.caption("누락 항목을 확인하고 최종 보고서 파일 및 ZIP 패키지를 생성합니다.")
     if st.button("현재 입력 기준 누락 검사", key="check_missing_btn"):
         current_data = build_current_data(save_files=False)
         st.session_state["last_missing"] = check_missing_documents(current_data)
