@@ -1,10 +1,10 @@
+import base64
 import json
 import os
 import re
-import smtplib
-import ssl
+import urllib.error
+import urllib.request
 from datetime import date
-from email.message import EmailMessage
 from pathlib import Path
 
 import pandas as pd
@@ -40,7 +40,7 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
-MAX_EMAIL_ATTACHMENT_BYTES = 24 * 1024 * 1024
+RESEND_API_URL = "https://api.resend.com/emails"
 
 
 st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide")
@@ -67,10 +67,33 @@ def init_state() -> None:
             st.session_state[key] = value
 
 
+def get_config_value(name: str, default: str = "") -> str:
+    value = os.getenv(name)
+    if value:
+        return value
+
+    try:
+        value = st.secrets.get(name, "")
+        if value:
+            return str(value)
+    except Exception:
+        pass
+
+    return default
+
+
+def get_float_config_value(name: str, default: float) -> float:
+    raw_value = get_config_value(name, str(default)).strip()
+    try:
+        return float(raw_value)
+    except ValueError:
+        return default
+
+
 def get_llm() -> LLMClient:
     return LLMClient(
-        api_key=st.session_state.get("api_key") or os.getenv("OPENAI_API_KEY", ""),
-        model=st.session_state.get("model") or os.getenv("OPENAI_MODEL", "gpt-5.5"),
+        api_key=st.session_state.get("api_key") or get_config_value("OPENAI_API_KEY", ""),
+        model=st.session_state.get("model") or get_config_value("OPENAI_MODEL", "gpt-5.5"),
     )
 
 
@@ -155,51 +178,41 @@ def download_button(path: str, label: str, mime: str) -> None:
             st.download_button(label=label, data=f.read(), file_name=p.name, mime=mime)
 
 
-def get_config_value(name: str, default: str = "") -> str:
-    value = os.getenv(name)
-    if value:
-        return value
+def get_resend_config() -> dict:
+    api_key = get_config_value("RESEND_API_KEY", "")
+    sender = get_config_value("RESEND_FROM_EMAIL", "")
+    default_recipient = get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT)
+    subject_prefix = get_config_value("RESEND_SUBJECT_PREFIX", "[출장보고서]")
+    max_attachment_mb = get_float_config_value("RESEND_MAX_ATTACHMENT_MB", 20.0)
 
-    try:
-        value = st.secrets.get(name, "")
-        if value:
-            return str(value)
-    except Exception:
-        pass
-
-    return default
-
-
-def get_bool_config_value(name: str, default: bool = True) -> bool:
-    value = get_config_value(name, str(default)).strip().lower()
-    return value in {"1", "true", "yes", "y", "on"}
-
-
-def get_smtp_config() -> dict:
-    smtp_host = st.session_state.get("smtp_host") or get_config_value("SMTP_HOST", "smtp.gmail.com")
-    smtp_port = int(st.session_state.get("smtp_port") or get_config_value("SMTP_PORT", "587"))
-    smtp_username = st.session_state.get("smtp_username") or get_config_value("SMTP_USERNAME", "")
-    smtp_password = st.session_state.get("smtp_password") or get_config_value("SMTP_PASSWORD", "")
-    smtp_from = st.session_state.get("smtp_from") or get_config_value("SMTP_FROM", smtp_username)
-    smtp_use_tls = bool(st.session_state.get("smtp_use_tls", get_bool_config_value("SMTP_USE_TLS", True)))
-
-    if not smtp_host:
-        raise ValueError("SMTP_HOST가 설정되지 않았습니다.")
-    if not smtp_username:
-        raise ValueError("SMTP_USERNAME이 설정되지 않았습니다.")
-    if not smtp_password:
-        raise ValueError("SMTP_PASSWORD가 설정되지 않았습니다.")
-    if not smtp_from:
-        raise ValueError("SMTP_FROM 또는 SMTP_USERNAME이 설정되지 않았습니다.")
+    if not api_key:
+        raise ValueError("RESEND_API_KEY가 설정되지 않았습니다. Streamlit Cloud의 App settings > Secrets에 추가하세요.")
+    if not sender:
+        raise ValueError("RESEND_FROM_EMAIL이 설정되지 않았습니다. Resend에서 사용 가능한 발신자 이메일을 설정하세요.")
 
     return {
-        "host": smtp_host,
-        "port": smtp_port,
-        "username": smtp_username,
-        "password": smtp_password,
-        "sender": smtp_from,
-        "use_tls": smtp_use_tls,
+        "api_key": api_key,
+        "sender": sender,
+        "default_recipient": default_recipient,
+        "subject_prefix": subject_prefix,
+        "max_attachment_bytes": int(max_attachment_mb * 1024 * 1024),
     }
+
+
+def normalize_recipients(recipient: str) -> list[str]:
+    recipients = [email.strip() for email in re.split(r"[,;]", recipient or "") if email.strip()]
+    if not recipients:
+        raise ValueError("수신자 이메일을 입력하세요.")
+    return recipients
+
+
+def add_subject_prefix(subject: str, prefix: str) -> str:
+    cleaned_subject = (subject or "").strip()
+    cleaned_prefix = (prefix or "").strip()
+
+    if cleaned_prefix and not cleaned_subject.startswith(cleaned_prefix):
+        return f"{cleaned_prefix} {cleaned_subject}"
+    return cleaned_subject
 
 
 def send_email_with_attachment(
@@ -207,45 +220,52 @@ def send_email_with_attachment(
     subject: str,
     body: str,
     attachment_path: str | Path,
-) -> None:
+) -> dict:
     attachment = Path(attachment_path)
     if not attachment.exists():
         raise FileNotFoundError(f"첨부파일을 찾을 수 없습니다: {attachment}")
 
-    if attachment.stat().st_size > MAX_EMAIL_ATTACHMENT_BYTES:
+    resend_config = get_resend_config()
+    if attachment.stat().st_size > resend_config["max_attachment_bytes"]:
+        max_mb = resend_config["max_attachment_bytes"] / 1024 / 1024
         raise ValueError(
-            "첨부 ZIP 파일이 24MB를 초과합니다. Gmail 등 일부 SMTP 서버는 25MB 이상 첨부파일 발송을 제한할 수 있습니다."
+            f"첨부 ZIP 파일이 {max_mb:.0f}MB를 초과합니다. 파일을 분할하거나 다운로드 방식으로 제출하세요."
         )
 
-    smtp_config = get_smtp_config()
+    encoded_attachment = base64.b64encode(attachment.read_bytes()).decode("utf-8")
 
-    message = EmailMessage()
-    message["From"] = smtp_config["sender"]
-    message["To"] = recipient
-    message["Subject"] = subject
-    message.set_content(body)
+    payload = {
+        "from": resend_config["sender"],
+        "to": normalize_recipients(recipient),
+        "subject": add_subject_prefix(subject, resend_config["subject_prefix"]),
+        "text": body,
+        "attachments": [
+            {
+                "filename": attachment.name,
+                "content": encoded_attachment,
+            }
+        ],
+    }
 
-    message.add_attachment(
-        attachment.read_bytes(),
-        maintype="application",
-        subtype="zip",
-        filename=attachment.name,
+    request = urllib.request.Request(
+        RESEND_API_URL,
+        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
+        headers={
+            "Authorization": f"Bearer {resend_config['api_key']}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
     )
 
-    context = ssl.create_default_context()
-
-    if smtp_config["port"] == 465:
-        with smtplib.SMTP_SSL(smtp_config["host"], smtp_config["port"], context=context) as server:
-            server.login(smtp_config["username"], smtp_config["password"])
-            server.send_message(message)
-    else:
-        with smtplib.SMTP(smtp_config["host"], smtp_config["port"]) as server:
-            server.ehlo()
-            if smtp_config["use_tls"]:
-                server.starttls(context=context)
-                server.ehlo()
-            server.login(smtp_config["username"], smtp_config["password"])
-            server.send_message(message)
+    try:
+        with urllib.request.urlopen(request, timeout=30) as response:
+            response_body = response.read().decode("utf-8")
+            return json.loads(response_body) if response_body else {}
+    except urllib.error.HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="replace")
+        raise RuntimeError(f"Resend API 오류({exc.code}): {error_body}") from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"Resend API 연결 실패: {exc.reason}") from exc
 
 
 init_state()
@@ -254,45 +274,33 @@ with st.sidebar:
     st.title("출장보고서 등록 시스템")
     st.session_state["api_key"] = st.text_input(
         "OpenAI API Key",
-        value=os.getenv("OPENAI_API_KEY", ""),
+        value=get_config_value("OPENAI_API_KEY", ""),
         type="password",
     )
     st.session_state["model"] = st.text_input(
         "Model",
-        value=os.getenv("OPENAI_MODEL", "gpt-5.5"),
+        value=get_config_value("OPENAI_MODEL", "gpt-5.5"),
     )
     st.caption("경희대학교 연구자들을 위한 학회 출장 결과보고서 등록 시스템")
 
     st.divider()
     st.subheader("이메일 발송 설정")
-    st.session_state["smtp_host"] = st.text_input(
-        "SMTP Host",
-        value=get_config_value("SMTP_HOST", "smtp.gmail.com"),
+    if get_config_value("RESEND_API_KEY", ""):
+        st.success("Resend API Key가 Secrets에 설정되어 있습니다.")
+    else:
+        st.warning("RESEND_API_KEY가 설정되지 않았습니다.")
+
+    st.text_input(
+        "기본 수신자",
+        value=get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT),
+        disabled=True,
     )
-    st.session_state["smtp_port"] = st.number_input(
-        "SMTP Port",
-        min_value=1,
-        max_value=65535,
-        value=int(get_config_value("SMTP_PORT", "587")),
-        step=1,
-    )
-    st.session_state["smtp_username"] = st.text_input(
-        "SMTP Username",
-        value=get_config_value("SMTP_USERNAME", ""),
-    )
-    st.session_state["smtp_password"] = st.text_input(
-        "SMTP Password / App Password",
-        value=get_config_value("SMTP_PASSWORD", ""),
-        type="password",
-    )
-    st.session_state["smtp_from"] = st.text_input(
+    st.text_input(
         "보내는 이메일",
-        value=get_config_value("SMTP_FROM", get_config_value("SMTP_USERNAME", "")),
+        value=get_config_value("RESEND_FROM_EMAIL", "미설정"),
+        disabled=True,
     )
-    st.session_state["smtp_use_tls"] = st.checkbox(
-        "STARTTLS 사용",
-        value=get_bool_config_value("SMTP_USE_TLS", True),
-    )
+    st.caption("이메일 발송은 SMTP가 아니라 Resend API로 처리됩니다. 설정값은 Streamlit Cloud의 Secrets에서 관리하세요.")
 
 
 st.title("학회 출장 결과보고서 등록 시스템")
@@ -725,7 +733,7 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
 
         email_recipient = st.text_input(
             "수신자 이메일",
-            value=DEFAULT_EMAIL_RECIPIENT,
+            value=get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT),
             key="email_recipient",
         )
         email_subject = st.text_input(
@@ -746,13 +754,17 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
 
         if st.button("전체 ZIP 이메일 발송", key="send_zip_email_btn"):
             try:
-                send_email_with_attachment(
+                resend_response = send_email_with_attachment(
                     recipient=email_recipient,
                     subject=email_subject,
                     body=email_body,
                     attachment_path=last_zip_path,
                 )
-                st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
+                message_id = resend_response.get("id", "")
+                if message_id:
+                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다. Resend ID: {message_id}")
+                else:
+                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
             except Exception as exc:
                 st.error(f"이메일 발송 실패: {exc}")
     else:
