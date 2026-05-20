@@ -1131,15 +1131,59 @@ with st.expander("Step 10. 제출서류 체크리스트 / 최종 생성", expand
             if missing:
                 st.warning("보고서는 생성되었지만 누락 또는 확인 필요 항목이 있습니다. 아래 체크리스트를 확인하세요.")
 
-            download_button(
-                generated_docx,
-                "출장결과보고서 DOCX 다운로드",
-                "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-            )
-            download_button(generated_pdf, "출장결과보고서 PDF 다운로드", "application/pdf")
             if reason_path:
-                download_button(reason_path, "사유서 PDF 다운로드", "application/pdf")
-            download_button(generated_zip, "전체 ZIP 다운로드", "application/zip")
+                download_cols = st.columns(4)
+
+                with download_cols[0]:
+                    download_button(
+                        generated_docx,
+                        "DOCX 다운로드",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+
+                with download_cols[1]:
+                    download_button(
+                        generated_pdf,
+                        "PDF 다운로드",
+                        "application/pdf",
+                    )
+
+                with download_cols[2]:
+                    download_button(
+                        reason_path,
+                        "사유서 PDF",
+                        "application/pdf",
+                    )
+
+                with download_cols[3]:
+                    download_button(
+                        generated_zip,
+                        "ZIP 다운로드",
+                        "application/zip",
+                    )
+            else:
+                download_cols = st.columns(3)
+
+                with download_cols[0]:
+                    download_button(
+                        generated_docx,
+                        "DOCX 다운로드",
+                        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+                    )
+
+                with download_cols[1]:
+                    download_button(
+                        generated_pdf,
+                        "PDF 다운로드",
+                        "application/pdf",
+                    )
+
+                with download_cols[2]:
+                    download_button(
+                        generated_zip,
+                        "ZIP 다운로드",
+                        "application/zip",
+                    )
 
             df = pd.DataFrame(st.session_state["last_checklist"])
             st.dataframe(style_checklist(df), use_container_width=True)
