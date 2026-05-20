@@ -43,7 +43,7 @@ OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
 
 
-st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="KHU Trip Report System", layout="wide", initial_sidebar_state="expanded")
 
 
 
@@ -84,25 +84,100 @@ def apply_ui_style() -> None:
         }
 
         .app-hero {
-            padding: 1.45rem 1.6rem;
-            border-radius: 22px;
-            background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 52%, #2563eb 100%);
-            color: white;
-            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
-            margin-bottom: 1.1rem;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 1.3rem;
+            padding: 1.35rem 1.45rem;
+            border-radius: 20px;
+            background:
+                radial-gradient(circle at 8% 20%, rgba(37, 99, 235, 0.10), transparent 30%),
+                linear-gradient(135deg, #ffffff 0%, #f8fbff 62%, #eef6ff 100%);
+            border: 1px solid #dbeafe;
+            color: #0f172a;
+            box-shadow: 0 12px 30px rgba(15, 23, 42, 0.08);
+            margin-bottom: 1.25rem;
+            overflow: hidden;
+        }
+
+        .app-hero::before {
+            content: "";
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: 6px;
+            background: linear-gradient(180deg, #2563eb 0%, #38bdf8 100%);
+        }
+
+        .hero-kicker {
+            display: inline-flex;
+            align-items: center;
+            padding: 0.28rem 0.65rem;
+            border-radius: 999px;
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1d4ed8;
+            font-size: 0.78rem;
+            font-weight: 800;
+            letter-spacing: 0.01em;
+            margin-bottom: 0.55rem;
         }
 
         .app-hero h1 {
             margin: 0;
-            font-size: 2rem;
-            line-height: 1.25;
-            letter-spacing: -0.02em;
+            font-size: 2.05rem;
+            line-height: 1.18;
+            letter-spacing: -0.035em;
+            color: #0f172a;
         }
 
         .app-hero p {
-            margin: 0.55rem 0 0;
-            color: rgba(255, 255, 255, 0.82);
-            font-size: 0.98rem;
+            margin: 0.6rem 0 0;
+            color: #475569;
+            font-size: 0.96rem;
+            line-height: 1.65;
+        }
+
+        .hero-panel {
+            min-width: 210px;
+            padding: 1rem 1.1rem;
+            border-radius: 18px;
+            background: linear-gradient(135deg, #1d4ed8 0%, #2563eb 100%);
+            color: #ffffff;
+            box-shadow: 0 12px 24px rgba(37, 99, 235, 0.20);
+            text-align: left;
+        }
+
+        .hero-panel .panel-label {
+            font-size: 0.74rem;
+            opacity: 0.82;
+            font-weight: 700;
+            margin-bottom: 0.45rem;
+        }
+
+        .hero-panel .panel-title {
+            font-size: 1.08rem;
+            font-weight: 900;
+            line-height: 1.35;
+        }
+
+        .hero-panel .panel-hint {
+            margin-top: 0.35rem;
+            font-size: 0.78rem;
+            opacity: 0.82;
+        }
+
+        @media (max-width: 900px) {
+            .app-hero {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+            .hero-panel {
+                width: 100%;
+                min-width: 0;
+            }
         }
 
         .status-card {
@@ -226,14 +301,16 @@ def apply_ui_style() -> None:
         }
 
         .block-note {
-            padding: 0.75rem 0.95rem;
+            padding: 0.85rem 1rem;
             border-radius: 14px;
-            background: #f8fafc;
+            background: #ffffff;
             border: 1px solid #e5e7eb;
             color: #475569;
             font-size: 0.88rem;
-            line-height: 1.5;
-            margin-bottom: 0.8rem;
+            line-height: 1.55;
+            margin-top: 1.25rem;
+            margin-bottom: 1rem;
+            box-shadow: 0 6px 18px rgba(15, 23, 42, 0.035);
         }
         </style>
         """,
@@ -245,8 +322,16 @@ def render_hero() -> None:
     st.markdown(
         """
         <div class="app-hero">
-            <h1>학회 출장 결과보고서 등록 시스템</h1>
-            <p>Overview 추출, 출장목적 및 세부일정 자동생성, 증빙자료 정리, ZIP 패키지 생성 및 이메일 발송까지 한 번에 처리합니다.</p>
+            <div class="hero-text">
+                <div class="hero-kicker">Kyung Hee University · Research Administration</div>
+                <h1>KHU Trip Report System</h1>
+                <p>Overview 추출, 출장목적 및 세부일정 자동생성, 증빙자료 정리, ZIP 패키지 생성 및 이메일 발송까지 한 번에 처리합니다.</p>
+            </div>
+            <div class="hero-panel">
+                <div class="panel-label">Output Package</div>
+                <div class="panel-title">DOCX · PDF · ZIP</div>
+                <div class="panel-hint">보고서 생성부터 이메일 발송까지</div>
+            </div>
         </div>
         """,
         unsafe_allow_html=True,
