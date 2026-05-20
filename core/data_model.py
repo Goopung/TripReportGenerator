@@ -30,6 +30,7 @@ class TripReportData:
     daily_schedule: list[dict] = field(default_factory=list)
     research_theme: str = ""
     research_relatedness: str = ""
+    expected_effect_text: str = ""
     transport_files: dict[str, list[str]] = field(default_factory=dict)
     daily_receipts: dict[str, list[str]] = field(default_factory=dict)
     daily_photos: dict[str, list[str]] = field(default_factory=dict)
@@ -56,6 +57,7 @@ class TripReportData:
             "daily_schedule": self.daily_schedule,
             "research_theme": self.research_theme,
             "research_relatedness": self.research_relatedness,
+            "expected_effect_text": self.expected_effect_text,
             "transport_files": self.transport_files,
             "daily_receipts": self.daily_receipts,
             "daily_photos": self.daily_photos,
