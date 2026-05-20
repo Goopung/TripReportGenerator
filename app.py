@@ -1,13 +1,13 @@
 import base64
+import html
 import json
 import os
 import re
-import urllib.error
-import urllib.request
 from datetime import date
 from pathlib import Path
 
 import pandas as pd
+import resend
 import streamlit as st
 from dotenv import load_dotenv
 
@@ -40,7 +40,6 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
-RESEND_API_URL = "https://api.resend.com/emails"
 
 
 st.set_page_config(page_title="학회 출장 결과보고서 등록 시스템", layout="wide")
@@ -233,12 +232,16 @@ def send_email_with_attachment(
         )
 
     encoded_attachment = base64.b64encode(attachment.read_bytes()).decode("utf-8")
+    safe_html_body = html.escape(body or "").replace("\n", "<br>")
+
+    resend.api_key = resend_config["api_key"]
 
     payload = {
         "from": resend_config["sender"],
         "to": normalize_recipients(recipient),
         "subject": add_subject_prefix(subject, resend_config["subject_prefix"]),
-        "text": body,
+        "text": body or "",
+        "html": f"<p>{safe_html_body}</p>",
         "attachments": [
             {
                 "filename": attachment.name,
@@ -247,25 +250,13 @@ def send_email_with_attachment(
         ],
     }
 
-    request = urllib.request.Request(
-        RESEND_API_URL,
-        data=json.dumps(payload, ensure_ascii=False).encode("utf-8"),
-        headers={
-            "Authorization": f"Bearer {resend_config['api_key']}",
-            "Content-Type": "application/json",
-        },
-        method="POST",
-    )
-
     try:
-        with urllib.request.urlopen(request, timeout=30) as response:
-            response_body = response.read().decode("utf-8")
-            return json.loads(response_body) if response_body else {}
-    except urllib.error.HTTPError as exc:
-        error_body = exc.read().decode("utf-8", errors="replace")
-        raise RuntimeError(f"Resend API 오류({exc.code}): {error_body}") from exc
-    except urllib.error.URLError as exc:
-        raise RuntimeError(f"Resend API 연결 실패: {exc.reason}") from exc
+        response = resend.Emails.send(payload)
+        if isinstance(response, dict):
+            return response
+        return {"response": str(response)}
+    except Exception as exc:
+        raise RuntimeError(f"Resend API 발송 실패: {exc}") from exc
 
 
 init_state()
@@ -286,7 +277,7 @@ with st.sidebar:
     st.divider()
     st.subheader("이메일 발송 설정")
     if get_config_value("RESEND_API_KEY", ""):
-        st.success("Resend API 준비되었습니다.")
+        st.success("Resend API Key가 Secrets에 설정되어 있습니다.")
     else:
         st.warning("RESEND_API_KEY가 설정되지 않았습니다.")
 
@@ -300,7 +291,7 @@ with st.sidebar:
         value=get_config_value("RESEND_FROM_EMAIL", "미설정"),
         disabled=True,
     )
-    st.caption("이메일 발송은 Resend API를 통해 처리됩니다. 문의 사항은 관리자(pung@khu.ac.kr)에게 연락해 주시기 바랍니다.")
+    st.caption("이메일 발송은 SMTP가 아니라 Resend API로 처리됩니다. 설정값은 Streamlit Cloud의 Secrets에서 관리하세요.")
 
 
 st.title("학회 출장 결과보고서 등록 시스템")
