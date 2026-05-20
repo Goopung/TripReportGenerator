@@ -801,35 +801,52 @@ def open_zip_email_dialog() -> None:
     action_cols = st.columns(2)
 
     with action_cols[0]:
-        if st.button(
+        send_clicked = st.button(
             "이메일 발송",
             type="primary",
             key="send_zip_email_dialog_btn",
             use_container_width=True,
-        ):
-            try:
-                resend_response = send_email_with_attachment(
-                    recipient=email_recipient,
-                    subject=email_subject,
-                    body=email_body,
-                    attachment_path=last_zip_path,
-                )
-                message_id = resend_response.get("id", "")
-
-                if message_id:
-                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다. Resend ID: {message_id}")
-                else:
-                    st.success(f"전체 ZIP 파일을 {email_recipient}로 발송했습니다.")
-            except Exception as exc:
-                st.error(f"이메일 발송 실패: {exc}")
+        )
 
     with action_cols[1]:
-        if st.button(
+        close_clicked = st.button(
             "닫기",
             key="close_zip_email_dialog_btn",
             use_container_width=True,
-        ):
-            st.rerun()
+        )
+
+    if send_clicked:
+        try:
+            resend_response = send_email_with_attachment(
+                recipient=email_recipient,
+                subject=email_subject,
+                body=email_body,
+                attachment_path=last_zip_path,
+            )
+            message_id = resend_response.get("id", "")
+
+            if message_id:
+                st.session_state["email_dialog_result"] = (
+                    f"전체 ZIP 파일을 {email_recipient}로 발송했습니다. Resend ID: {message_id}"
+                )
+            else:
+                st.session_state["email_dialog_result"] = (
+                    f"전체 ZIP 파일을 {email_recipient}로 발송했습니다."
+                )
+
+        except Exception as exc:
+            st.session_state["email_dialog_error"] = f"이메일 발송 실패: {exc}"
+
+    if close_clicked:
+        st.session_state.pop("email_dialog_result", None)
+        st.session_state.pop("email_dialog_error", None)
+        st.rerun()
+
+    if st.session_state.get("email_dialog_result"):
+        st.success(st.session_state["email_dialog_result"])
+
+    if st.session_state.get("email_dialog_error"):
+        st.error(st.session_state["email_dialog_error"])
 
 
 init_state()
