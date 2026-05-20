@@ -1364,17 +1364,6 @@ def build_current_data(save_files: bool = False) -> TripReportData:
         reason_statement=reason,
     )
 
-
-st.markdown(
-    """
-    <div class="final-action-box">
-        <div class="final-action-title">최종 작업</div>
-        <div class="final-action-caption">출장보고서를 생성한 후 ZIP 이메일 발송 버튼이 활성화됩니다.</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
 notice = st.session_state.get("last_generation_notice", "")
 if notice:
     if "누락" in notice or "확인 필요" in notice:
