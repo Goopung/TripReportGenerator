@@ -277,7 +277,7 @@ with st.sidebar:
     st.divider()
     st.subheader("이메일 발송 설정")
     if get_config_value("RESEND_API_KEY", ""):
-        st.success("Resend API Key가 Secrets에 설정되어 있습니다.")
+        st.success("Resend API Key 설정이 완료되었습니다.")
     else:
         st.warning("RESEND_API_KEY가 설정되지 않았습니다.")
 
@@ -291,7 +291,7 @@ with st.sidebar:
         value=get_config_value("RESEND_FROM_EMAIL", "미설정"),
         disabled=True,
     )
-    st.caption("이메일 발송은 SMTP가 아니라 Resend API로 처리됩니다. 설정값은 Streamlit Cloud의 Secrets에서 관리하세요.")
+    st.caption("이메일 발송은 Resend API를 통해 처리됩니다. 문의 사항은 관리자(pung@khu.ac.kr)에게 연락해 주시기 바랍니다.")
 
 
 st.title("학회 출장 결과보고서 등록 시스템")
