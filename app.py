@@ -3,7 +3,7 @@ import html
 import json
 import os
 import re
-from datetime import date, datetime
+from datetime import date
 from pathlib import Path
 
 import pandas as pd
@@ -41,7 +41,6 @@ UPLOAD_ROOT.mkdir(parents=True, exist_ok=True)
 OUTPUT_ROOT.mkdir(parents=True, exist_ok=True)
 
 DEFAULT_EMAIL_RECIPIENT = "pung@khu.ac.kr"
-ISSUE_EMAIL_FROM = "Error Issue <onboarding@resend.dev>"
 
 
 st.set_page_config(
@@ -171,45 +170,57 @@ def apply_ui_style() -> None:
             opacity: 0.82;
         }
 
-        .hero-panel-clickable {
+        .hero-panel.issue-panel {
             cursor: pointer;
         }
 
-        .st-key-hero_issue_button_layer {
+        .st-key-hero_wrap {
             position: relative;
-            height: 0 !important;
-            min-height: 0 !important;
+            margin-bottom: 1.25rem;
+        }
+
+        .st-key-hero_wrap .app-hero {
+            margin-bottom: 0;
+        }
+
+        .st-key-hero_issue_click_layer {
+            position: absolute !important;
+            top: 1.35rem;
+            right: 1.45rem;
+            width: 210px;
+            min-width: 210px;
+            height: 108px;
+            z-index: 50;
             margin: 0 !important;
             padding: 0 !important;
-            z-index: 50;
         }
 
-        .st-key-hero_issue_button_layer div[data-testid="stButton"] {
-            position: absolute;
-            right: 1.45rem;
-            top: -8.95rem;
-            width: 210px;
-            height: 112px;
-            z-index: 60;
-        }
-
-        .st-key-hero_issue_button_layer div[data-testid="stButton"] > button {
+        .st-key-hero_issue_click_layer div[data-testid="stButton"] {
             width: 100%;
             height: 100%;
-            min-height: 112px;
-            border-radius: 18px;
-            opacity: 0.01;
+            margin: 0 !important;
+            padding: 0 !important;
+        }
+
+        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button {
+            width: 100%;
+            height: 100%;
+            min-height: 108px;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: 0 !important;
+            border-radius: 18px !important;
             background: transparent !important;
             color: transparent !important;
-            border: 0 !important;
             box-shadow: none !important;
+            opacity: 0.01;
             cursor: pointer;
         }
 
-        .st-key-hero_issue_button_layer div[data-testid="stButton"] > button:hover {
-            opacity: 0.04;
+        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button:hover {
             transform: none !important;
             box-shadow: none !important;
+            background: rgba(255, 255, 255, 0.01) !important;
         }
 
         @media (max-width: 900px) {
@@ -221,14 +232,6 @@ def apply_ui_style() -> None:
             .hero-panel {
                 width: 100%;
                 min-width: 0;
-            }
-
-            .st-key-hero_issue_button_layer div[data-testid="stButton"] {
-                left: 1.45rem;
-                right: 1.45rem;
-                top: -8.2rem;
-                width: calc(100% - 2.9rem);
-                height: 104px;
             }
         }
 
@@ -382,33 +385,37 @@ def apply_ui_style() -> None:
     )
 
 
-def render_hero() -> None:
-    st.markdown(
-        """
-        <div class="app-hero">
-            <div class="hero-text">
-                <div class="hero-kicker">Kyung Hee University · Research Administration</div>
-                <h1>KHU Trip Report System</h1>
-                <p>Overview 추출, 출장목적 및 세부일정 자동생성, 증빙자료 정리, ZIP 패키지 생성 및 이메일 발송까지 한 번에 처리합니다.</p>
-            </div>
-            <div class="hero-panel hero-panel-clickable">
-                <div class="panel-label">Support</div>
-                <div class="panel-title">Report an Issue</div>
-                <div class="panel-hint">Click here if the system fails or returns incorrect results.</div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
+def open_issue_report_from_hero() -> None:
+    st.session_state["show_issue_report_dialog"] = True
 
-    with st.container(key="hero_issue_button_layer"):
-        if st.button(
-            "Report an Issue",
-            key="open_issue_report_dialog_btn",
-            help="Report a system error or incorrect result",
-        ):
-            st.session_state["show_issue_report_dialog"] = True
-            st.rerun()
+
+def render_hero() -> None:
+    with st.container(key="hero_wrap"):
+        st.markdown(
+            """
+            <div class="app-hero">
+                <div class="hero-text">
+                    <div class="hero-kicker">Kyung Hee University · Research Administration</div>
+                    <h1>KHU Trip Report System</h1>
+                    <p>Overview 추출, 출장목적 및 세부일정 자동생성, 증빙자료 정리, ZIP 패키지 생성 및 이메일 발송까지 한 번에 처리합니다.</p>
+                </div>
+                <div class="hero-panel issue-panel">
+                    <div class="panel-label">Support</div>
+                    <div class="panel-title">Report an Issue</div>
+                    <div class="panel-hint">Click here if the system fails or returns incorrect results.</div>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        with st.container(key="hero_issue_click_layer"):
+            st.button(
+                " ",
+                key="hero_issue_click_btn",
+                help="Report an Issue",
+                use_container_width=True,
+                on_click=open_issue_report_from_hero,
+            )
 
 
 def render_status_cards() -> None:
@@ -509,11 +516,24 @@ def get_config_value(name: str, default: str = "") -> str:
     return default
 
 
+def get_float_config_value(name: str, default: float) -> float:
+    raw_value = get_config_value(name, str(default)).strip()
+
+    try:
+        return float(raw_value)
+    except ValueError:
+        return default
+
+
+
+ISSUE_EMAIL_FROM = "Error Issue <onboarding@resend.dev>"
+
+
 def get_issue_recipient() -> str:
     return (
         get_config_value("ISSUE_REPORT_TO_EMAIL", "")
         or get_config_value("RESEND_ISSUE_TO_EMAIL", "")
-        or get_config_value("RESEND_TO_EMAIL", DEFAULT_EMAIL_RECIPIENT)
+        or get_config_value("RESEND_TO_EMAIL", "")
         or DEFAULT_EMAIL_RECIPIENT
     )
 
@@ -527,13 +547,14 @@ def build_issue_email_body(
     include_context: bool,
 ) -> tuple[str, str]:
     context = {
-        "system": "KHU Trip Report System",
+        "app": "KHU Trip Report System",
         "conference_name": st.session_state.get("conference_name", ""),
         "trip_type": st.session_state.get("trip_type", ""),
-        "model": st.session_state.get("model", ""),
+        "model": st.session_state.get("model", get_config_value("OPENAI_MODEL", "")),
         "has_generated_zip": bool(st.session_state.get("last_generated_zip", "")),
         "timestamp": datetime.now().isoformat(timespec="seconds"),
     }
+
     context_text = "\n".join([f"{key}: {value}" for key, value in context.items()]) if include_context else "Not included"
 
     plain_text = f"""KHU Trip Report System Issue Report
@@ -595,8 +616,8 @@ def send_issue_report_email(
     description: str,
     include_context: bool,
 ) -> dict:
-    api_key = get_config_value("RESEND_API_KEY", "")
-    if not api_key:
+    resend_api_key = get_config_value("RESEND_API_KEY", "")
+    if not resend_api_key:
         raise RuntimeError("RESEND_API_KEY is not configured.")
 
     recipient = get_issue_recipient()
@@ -612,11 +633,12 @@ def send_issue_report_email(
         include_context=include_context,
     )
 
-    resend.api_key = api_key
+    resend.api_key = resend_api_key
+
     payload = {
         "from": ISSUE_EMAIL_FROM,
         "to": [recipient],
-        "subject": f"[KHU Trip Report System] {issue_type} Issue Report",
+        "subject": f"[KHU Trip Report] {issue_type} Issue Report",
         "html": html_body,
         "text": text_body,
     }
@@ -624,26 +646,28 @@ def send_issue_report_email(
     if reporter_email.strip():
         payload["reply_to"] = reporter_email.strip()
 
-    response = resend.Emails.send(payload)
-    if isinstance(response, dict):
-        return response
-
-    return {"response": str(response)}
+    try:
+        response = resend.Emails.send(payload)
+        if isinstance(response, dict):
+            return response
+        return {"response": str(response)}
+    except Exception as exc:
+        raise RuntimeError(f"Resend API issue report failed: {exc}") from exc
 
 
 @st.dialog("Report an Issue", dismissible=True, width="large")
 def open_issue_report_dialog() -> None:
-    st.caption("Use this form to report system errors, incorrect outputs, document generation failures, or email sending issues.")
+    st.caption("Use this form to report system errors, incorrect results, generation failures, or email delivery issues.")
 
-    with st.form("trip_issue_report_form", clear_on_submit=False):
+    with st.form("issue_report_form", clear_on_submit=False):
         issue_type = st.selectbox(
             "Issue type",
             [
                 "System error",
-                "Incorrect generated content",
-                "Document generation failure",
-                "PDF/ZIP output problem",
-                "Email sending failure",
+                "Incorrect output",
+                "Report generation failure",
+                "File download problem",
+                "Email sending problem",
                 "Other",
             ],
             index=0,
@@ -668,7 +692,7 @@ def open_issue_report_dialog() -> None:
         include_context = st.checkbox(
             "Include basic runtime context",
             value=True,
-            help="Includes system name, conference name, trip type, selected model, generated ZIP status, and timestamp.",
+            help="Includes app name, conference name, trip type, model, generated ZIP status, and timestamp.",
         )
 
         submitted = st.form_submit_button(
@@ -682,7 +706,7 @@ def open_issue_report_dialog() -> None:
             st.warning("Please enter an issue description before sending.")
         else:
             try:
-                result = send_issue_report_email(
+                response = send_issue_report_email(
                     issue_type=issue_type,
                     severity=severity,
                     reporter_name=reporter_name,
@@ -690,7 +714,7 @@ def open_issue_report_dialog() -> None:
                     description=description,
                     include_context=include_context,
                 )
-                message_id = result.get("id", "") if isinstance(result, dict) else ""
+                message_id = response.get("id", "") if isinstance(response, dict) else ""
                 if message_id:
                     st.success(f"Issue report sent successfully. Resend ID: {message_id}")
                 else:
@@ -698,18 +722,9 @@ def open_issue_report_dialog() -> None:
             except Exception as exc:
                 st.error(f"Failed to send issue report: {exc}")
 
-    if st.button("Close", use_container_width=True, key="close_trip_issue_report_dialog_btn"):
+    if st.button("Close", use_container_width=True, key="close_issue_report_dialog_btn"):
         st.session_state["show_issue_report_dialog"] = False
         st.rerun()
-
-
-def get_float_config_value(name: str, default: float) -> float:
-    raw_value = get_config_value(name, str(default)).strip()
-
-    try:
-        return float(raw_value)
-    except ValueError:
-        return default
 
 
 def get_llm() -> LLMClient:
@@ -1142,10 +1157,8 @@ with st.sidebar:
 
 
 render_hero()
-
 if st.session_state.get("show_issue_report_dialog", False):
     open_issue_report_dialog()
-
 render_status_cards()
 
 st.markdown(
