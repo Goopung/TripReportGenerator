@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from core.data_model import ReasonStatementData, TripReportData
 from core.file_utils import (
     date_range,
-    extract_text_from_file,
+    extract_text_from_file,출장보고서 등록 시스템
     iso_date,
     korean_date,
     save_uploaded_files,
@@ -853,15 +853,6 @@ init_state()
 apply_ui_style()
 
 with st.sidebar:
-    st.markdown(
-        """
-        <div class="sidebar-card">
-            <div class="sidebar-card-title">출장보고서 등록 시스템</div>
-            <div class="sidebar-card-text">입력, 증빙자료 업로드, 보고서 생성, 이메일 발송까지 순서대로 진행하세요.</div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
 
     st.subheader("기본 설정")
     st.session_state["api_key"] = st.text_input(
