@@ -185,27 +185,37 @@ def apply_ui_style() -> None:
 
         .st-key-hero_issue_click_layer {
             position: absolute !important;
-            top: 1.35rem;
+            top: 50%;
             right: 1.45rem;
+            transform: translateY(-50%);
             width: 210px;
             min-width: 210px;
             height: 108px;
             z-index: 50;
             margin: 0 !important;
             padding: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
         }
 
+        .st-key-hero_issue_click_layer div,
         .st-key-hero_issue_click_layer div[data-testid="stButton"] {
-            width: 100%;
-            height: 100%;
+            width: 100% !important;
+            height: 100% !important;
             margin: 0 !important;
             padding: 0 !important;
+            background: transparent !important;
+            border: 0 !important;
+            box-shadow: none !important;
         }
 
-        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button {
-            width: 100%;
-            height: 100%;
-            min-height: 108px;
+        .st-key-hero_issue_click_layer button,
+        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button,
+        .st-key-hero_issue_click_layer [data-testid^="stBaseButton"] {
+            width: 100% !important;
+            height: 100% !important;
+            min-height: 108px !important;
             padding: 0 !important;
             margin: 0 !important;
             border: 0 !important;
@@ -213,14 +223,19 @@ def apply_ui_style() -> None:
             background: transparent !important;
             color: transparent !important;
             box-shadow: none !important;
-            opacity: 0.01;
-            cursor: pointer;
+            opacity: 0 !important;
+            cursor: pointer !important;
+            outline: none !important;
         }
 
-        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button:hover {
+        .st-key-hero_issue_click_layer button:hover,
+        .st-key-hero_issue_click_layer div[data-testid="stButton"] > button:hover,
+        .st-key-hero_issue_click_layer [data-testid^="stBaseButton"]:hover {
             transform: none !important;
             box-shadow: none !important;
-            background: rgba(255, 255, 255, 0.01) !important;
+            background: transparent !important;
+            color: transparent !important;
+            opacity: 0 !important;
         }
 
         @media (max-width: 900px) {
@@ -412,7 +427,6 @@ def render_hero() -> None:
             st.button(
                 " ",
                 key="hero_issue_click_btn",
-                help="Report an Issue",
                 use_container_width=True,
                 on_click=open_issue_report_from_hero,
             )
