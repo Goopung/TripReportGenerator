@@ -1,6 +1,7 @@
-# TripReportGeneratorApp
+# TripReportGenerator
 
 This is a standalone app for automatically generating conference business trip result reports.
+https://tripreportgenerator.streamlit.app/
 
 ## Major Updates
 
