@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 from core.data_model import ReasonStatementData, TripReportData
 from core.file_utils import (
     date_range,
-    extract_text_from_file,출장보고서 등록 시스템
+    extract_text_from_file,
     iso_date,
     korean_date,
     save_uploaded_files,
